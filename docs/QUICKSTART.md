@@ -2,13 +2,12 @@
 
 ## Prerequisites
 
-- Root API running on `http://localhost:8787`
-- `admin/.env.local` created from `admin/.env.example`
+- API running on `http://localhost:8787`
+- `.env.local` created from `.env.example`
 
 ## Start
 
 ```bash
-cd admin
 yarn install
 yarn dev
 ```

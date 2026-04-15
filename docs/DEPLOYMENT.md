@@ -15,9 +15,8 @@ VIEWER_PASSWORD=strong-viewer-password
 ## Vercel
 
 1. Import the repository
-2. Set the root directory to `admin`
-3. Add the required env vars
-4. Deploy
+2. Add the required env vars
+3. Deploy
 
 `API_INTERNAL_URL` can point to a private hostname or a server-side reachable public API URL.
 

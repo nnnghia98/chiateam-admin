@@ -15,7 +15,6 @@ Viewer sessions can read. Admin sessions can mutate.
 ## Local setup
 
 ```bash
-cd admin
 cp .env.example .env.local
 yarn install
 yarn dev
