@@ -30,7 +30,7 @@ export default function LoginPage() {
     setLoading(false);
 
     if (success) {
-      router.push('/dashboard');
+      router.push('/');
     } else {
       setError('Invalid password. Please try again.');
       setPassword('');

@@ -1,7 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
+import { Users, Calendar, Trophy, Target } from 'lucide-react';
 import { apiClient } from '@/lib/api-client';
+import { StatCardSkeleton, Skeleton } from '@/components/skeleton';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Table,
@@ -11,11 +13,6 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Users, Calendar, Trophy, Target } from 'lucide-react';
-import {
-  StatCardSkeleton,
-  Skeleton,
-} from '@/components/skeleton';
 
 interface Stats {
   totalPlayers: number;
@@ -26,7 +23,7 @@ interface Stats {
 
 const RANK_EMOJI = ['🥇', '🥈', '🥉'];
 
-export default function DashboardPage() {
+export function DashboardOverview() {
   const [stats, setStats] = useState<Stats>({
     totalPlayers: 0,
     totalMatches: 0,
@@ -36,7 +33,7 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    loadStats();
+    void loadStats();
   }, []);
 
   const loadStats = async () => {
@@ -136,14 +133,13 @@ export default function DashboardPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl sm:text-3xl font-bold text-[#222222] dark:text-[#f5f5f5] tracking-tight">
-          Dashboard
+          Chiateam Admin
         </h1>
         <p className="text-[#6a6a6a] dark:text-[#a3a3a3] mt-1 text-sm">
           Overview of your football team statistics
         </p>
       </div>
 
-      {/* Stat cards: 2-col on mobile, 4-col on desktop */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {statCards.map(card => {
           const Icon = card.icon;
@@ -173,9 +169,7 @@ export default function DashboardPage() {
         })}
       </div>
 
-      {/* Tables: stacked on mobile, 2-col on desktop */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {/* Recent Matches */}
         <Card className="dark:bg-[#1c1c1e] dark:border-[#2e2e2e] shadow-airbnb-card">
           <CardHeader className="pb-3">
             <CardTitle className="text-base font-semibold text-[#222222] dark:text-[#f5f5f5]">
@@ -233,7 +227,6 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        {/* Top Scorers */}
         <Card className="dark:bg-[#1c1c1e] dark:border-[#2e2e2e] shadow-airbnb-card">
           <CardHeader className="pb-3">
             <CardTitle className="text-base font-semibold text-[#222222] dark:text-[#f5f5f5]">

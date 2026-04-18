@@ -8,7 +8,6 @@ import {
   Users,
   Trophy,
   Calendar,
-  LayoutDashboard,
   LogOut,
   Shield,
   Eye,
@@ -30,7 +29,6 @@ import {
 } from '@/components/ui/sheet';
 
 const links = [
-  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/next-match', label: 'Next Match', icon: Swords },
   { href: '/players', label: 'Players', icon: Users },
   { href: '/matches', label: 'Matches', icon: Calendar },
@@ -51,6 +49,19 @@ export function Navigation() {
 
   return (
     <>
+      {/* ── Desktop Backdrop ───────────────────────────────── */}
+      <button
+        type="button"
+        aria-label="Close sidebar"
+        onClick={collapsed ? undefined : toggle}
+        className={cn(
+          'hidden lg:block fixed inset-0 z-30 bg-[#222222]/40 dark:bg-black/50 transition-opacity duration-300 ease-in-out',
+          collapsed
+            ? 'pointer-events-none opacity-0'
+            : 'pointer-events-auto opacity-100'
+        )}
+      />
+
       {/* ── Desktop Sidebar ─────────────────────────────────── */}
       <aside
         className={cn(

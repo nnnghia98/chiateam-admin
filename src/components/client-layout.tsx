@@ -3,13 +3,11 @@
 import { useEffect } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { AuthProvider, useAuth } from '@/contexts/auth-context';
-import { SidebarProvider, useSidebar } from '@/contexts/sidebar-context';
+import { SidebarProvider } from '@/contexts/sidebar-context';
 import { Navigation } from '@/components/navigation';
-import { cn } from '@/lib/utils';
 
 function ProtectedLayout({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading } = useAuth();
-  const { collapsed } = useSidebar();
   const pathname = usePathname();
   const router = useRouter();
 
@@ -18,7 +16,7 @@ function ProtectedLayout({ children }: { children: React.ReactNode }) {
 
     if (pathname === '/login') {
       if (isAuthenticated) {
-        router.replace('/dashboard');
+        router.replace('/');
       }
       return;
     }
@@ -50,13 +48,7 @@ function ProtectedLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen bg-[#f5f5f5] dark:bg-[#111111]">
       <Navigation />
-      <main
-        className={cn(
-          'transition-all duration-300 ease-in-out',
-          /* Desktop: offset by sidebar width */
-          collapsed ? 'lg:ml-16' : 'lg:ml-64'
-        )}
-      >
+      <main className="transition-all duration-300 ease-in-out lg:ml-16">
         <div className="px-4 py-6 lg:px-8 lg:py-8 max-w-[1600px]">
           {children}
         </div>

@@ -559,6 +559,115 @@ export default function NextMatchPage() {
           </div>
         </div>
 
+        {/* Teams */}
+        <Card className="rounded-airbnb shadow-sm dark:bg-[#1c1c1e] dark:border-[#2e2e2e]">
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+              <div className="flex items-center gap-3">
+                <CardTitle className="text-base font-semibold text-[#222] dark:text-[#f5f5f5]">
+                  Players & Teams
+                </CardTitle>
+                {/* Mode toggle */}
+                <div
+                  className="inline-flex rounded-[20px] p-0.5"
+                  style={{
+                    boxShadow:
+                      'rgba(0,0,0,0.02) 0px 0px 0px 1px, rgba(0,0,0,0.04) 0px 2px 6px, rgba(0,0,0,0.06) 0px 3px 6px',
+                  }}
+                >
+                  <button
+                    onClick={() => setTeamMode('2')}
+                    className="px-3 py-1 rounded-[18px] text-xs font-semibold transition-colors"
+                    style={{
+                      backgroundColor:
+                        teamMode === '2' ? '#222222' : 'transparent',
+                      color: teamMode === '2' ? '#ffffff' : '#6a6a6a',
+                    }}
+                  >
+                    2 Teams
+                  </button>
+                  <button
+                    onClick={() => setTeamMode('3')}
+                    className="px-3 py-1 rounded-[18px] text-xs font-semibold transition-colors"
+                    style={{
+                      backgroundColor:
+                        teamMode === '3' ? '#222222' : 'transparent',
+                      color: teamMode === '3' ? '#ffffff' : '#6a6a6a',
+                    }}
+                  >
+                    3 Teams
+                  </button>
+                </div>
+              </div>
+              {canEdit && (
+                <div className="flex gap-2 items-center">
+                  <Input
+                    placeholder="Player name"
+                    value={addName}
+                    onChange={e => setAddName(e.target.value)}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter') addToBench();
+                    }}
+                    className="h-8 text-sm w-36 rounded-airbnb"
+                  />
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={addToBench}
+                    className="h-8 border-[#c1c1c1] rounded-airbnb"
+                  >
+                    <Plus className="w-3 h-3 mr-1" />
+                    Add to bench
+                  </Button>
+                </div>
+              )}
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {teamMode === '2' ? (
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                {teamKeys.map(teamKey => (
+                  <TeamColumn
+                    key={teamKey}
+                    teamKey={teamKey}
+                    players={storage[teamKey]}
+                    canEdit={canEdit}
+                    onRemove={key => removePlayer(teamKey, key)}
+                    onRename={(key, name) => renamePlayer(teamKey, key, name)}
+                    onClear={() => clearTeam(teamKey)}
+                  />
+                ))}
+              </div>
+            ) : (
+              <>
+                {/* Bench row */}
+                <TeamColumn
+                  teamKey="bench"
+                  players={storage.bench}
+                  canEdit={canEdit}
+                  onRemove={key => removePlayer('bench', key)}
+                  onRename={(key, name) => renamePlayer('bench', key, name)}
+                  onClear={() => clearTeam('bench')}
+                />
+                {/* 3 teams grid */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  {team3Keys.map(teamKey => (
+                    <TeamColumn
+                      key={teamKey}
+                      teamKey={teamKey}
+                      players={storage[teamKey]}
+                      canEdit={canEdit}
+                      onRemove={key => removePlayer(teamKey, key)}
+                      onRename={(key, name) => renamePlayer(teamKey, key, name)}
+                      onClear={() => clearTeam(teamKey)}
+                    />
+                  ))}
+                </div>
+              </>
+            )}
+          </CardContent>
+        </Card>
+
         {/* Financial Info */}
         <Card className="rounded-airbnb shadow-sm dark:bg-[#1c1c1e] dark:border-[#2e2e2e]">
           <CardHeader className="pb-3">
@@ -774,115 +883,6 @@ export default function NextMatchPage() {
               </div>
             ) : (
               <p className="text-sm text-[#aaa] italic">No active vote</p>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Teams */}
-        <Card className="rounded-airbnb shadow-sm dark:bg-[#1c1c1e] dark:border-[#2e2e2e]">
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between gap-3 flex-wrap">
-              <div className="flex items-center gap-3">
-                <CardTitle className="text-base font-semibold text-[#222] dark:text-[#f5f5f5]">
-                  Players & Teams
-                </CardTitle>
-                {/* Mode toggle */}
-                <div
-                  className="inline-flex rounded-[20px] p-0.5"
-                  style={{
-                    boxShadow:
-                      'rgba(0,0,0,0.02) 0px 0px 0px 1px, rgba(0,0,0,0.04) 0px 2px 6px, rgba(0,0,0,0.06) 0px 3px 6px',
-                  }}
-                >
-                  <button
-                    onClick={() => setTeamMode('2')}
-                    className="px-3 py-1 rounded-[18px] text-xs font-semibold transition-colors"
-                    style={{
-                      backgroundColor:
-                        teamMode === '2' ? '#222222' : 'transparent',
-                      color: teamMode === '2' ? '#ffffff' : '#6a6a6a',
-                    }}
-                  >
-                    2 Teams
-                  </button>
-                  <button
-                    onClick={() => setTeamMode('3')}
-                    className="px-3 py-1 rounded-[18px] text-xs font-semibold transition-colors"
-                    style={{
-                      backgroundColor:
-                        teamMode === '3' ? '#222222' : 'transparent',
-                      color: teamMode === '3' ? '#ffffff' : '#6a6a6a',
-                    }}
-                  >
-                    3 Teams
-                  </button>
-                </div>
-              </div>
-              {canEdit && (
-                <div className="flex gap-2 items-center">
-                  <Input
-                    placeholder="Player name"
-                    value={addName}
-                    onChange={e => setAddName(e.target.value)}
-                    onKeyDown={e => {
-                      if (e.key === 'Enter') addToBench();
-                    }}
-                    className="h-8 text-sm w-36 rounded-airbnb"
-                  />
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={addToBench}
-                    className="h-8 border-[#c1c1c1] rounded-airbnb"
-                  >
-                    <Plus className="w-3 h-3 mr-1" />
-                    Add to bench
-                  </Button>
-                </div>
-              )}
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {teamMode === '2' ? (
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                {teamKeys.map(teamKey => (
-                  <TeamColumn
-                    key={teamKey}
-                    teamKey={teamKey}
-                    players={storage[teamKey]}
-                    canEdit={canEdit}
-                    onRemove={key => removePlayer(teamKey, key)}
-                    onRename={(key, name) => renamePlayer(teamKey, key, name)}
-                    onClear={() => clearTeam(teamKey)}
-                  />
-                ))}
-              </div>
-            ) : (
-              <>
-                {/* Bench row */}
-                <TeamColumn
-                  teamKey="bench"
-                  players={storage.bench}
-                  canEdit={canEdit}
-                  onRemove={key => removePlayer('bench', key)}
-                  onRename={(key, name) => renamePlayer('bench', key, name)}
-                  onClear={() => clearTeam('bench')}
-                />
-                {/* 3 teams grid */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  {team3Keys.map(teamKey => (
-                    <TeamColumn
-                      key={teamKey}
-                      teamKey={teamKey}
-                      players={storage[teamKey]}
-                      canEdit={canEdit}
-                      onRemove={key => removePlayer(teamKey, key)}
-                      onRename={(key, name) => renamePlayer(teamKey, key, name)}
-                      onClear={() => clearTeam(teamKey)}
-                    />
-                  ))}
-                </div>
-              </>
             )}
           </CardContent>
         </Card>
