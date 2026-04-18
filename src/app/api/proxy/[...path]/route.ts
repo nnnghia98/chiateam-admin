@@ -9,9 +9,28 @@ type ProxyRouteContext = {
 };
 
 function buildApiUrl(request: NextRequest, path: string[]) {
-  const joinedPath = path.join('/');
+  const normalizedPath = [...path];
+  const baseUrl = API_URL?.replace(/\/+$/, '') || '';
+
+  // Avoid duplicate "/api/api/..." when API_INTERNAL_URL already ends with "/api".
+  const basePathSegments = baseUrl
+    .replace(/^https?:\/\/[^/]+/i, '')
+    .split('/')
+    .filter(Boolean);
+  const baseLastSegment = basePathSegments[basePathSegments.length - 1];
+
+  if (
+    baseLastSegment &&
+    normalizedPath[0] &&
+    baseLastSegment.toLowerCase() === normalizedPath[0].toLowerCase()
+  ) {
+    normalizedPath.shift();
+  }
+
+  const joinedPath = normalizedPath.join('/');
   const searchParams = request.nextUrl.searchParams.toString();
-  return `${API_URL}/${joinedPath}${searchParams ? `?${searchParams}` : ''}`;
+  const pathSuffix = joinedPath ? `/${joinedPath}` : '';
+  return `${baseUrl}${pathSuffix}${searchParams ? `?${searchParams}` : ''}`;
 }
 
 function unauthorized() {

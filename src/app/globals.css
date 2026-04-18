@@ -2,9 +2,62 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ─── Skeleton shimmer ───────────────────────────────────── */
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.skeleton-shimmer {
+  background: linear-gradient(
+    90deg,
+    #e8e8e8 25%,
+    #f0f0f0 50%,
+    #e8e8e8 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
+}
+
+.dark .skeleton-shimmer {
+  background: linear-gradient(
+    90deg,
+    #2a2a2a 25%,
+    #333333 50%,
+    #2a2a2a 75%
+  );
+  background-size: 200% 100%;
+}
+
+/* ─── Scrollbar ──────────────────────────────────────────── */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #6a6a6a;
+}
+.dark ::-webkit-scrollbar-thumb {
+  background: #3a3a3a;
+}
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: #5a5a5a;
+}
+
 @layer base {
   :root {
-    /* Airbnb Palette Tokens */
+    /* ── Airbnb Palette Tokens (Light) ── */
     --palette-brand: #ff385c;
     --palette-brand-dark: #e00b41;
     --palette-text-primary: #222222;
@@ -15,7 +68,7 @@
     --palette-text-error: #c13515;
     --palette-text-legal: #428bff;
 
-    /* Airbnb-derived shadcn/ui variables */
+    /* ── shadcn/ui variables (Light) ── */
     --background: 0 0% 100%;
     --foreground: 0 0% 13.3%;
     --card: 0 0% 100%;
@@ -37,12 +90,56 @@
     --ring: 349 100% 60%;
     --radius: 0.5rem;
   }
+
+  .dark {
+    /* ── Airbnb Palette Tokens (Dark) ── */
+    --palette-brand: #ff385c;
+    --palette-brand-dark: #e00b41;
+    --palette-text-primary: #f5f5f5;
+    --palette-text-secondary: #a3a3a3;
+    --palette-text-disabled: rgba(255, 255, 255, 0.24);
+    --palette-surface: #2a2a2a;
+    --palette-border: #2e2e2e;
+    --palette-text-error: #ff6b6b;
+    --palette-text-legal: #5aa3ff;
+
+    /* ── shadcn/ui variables (Dark) ── */
+    --background: 0 0% 6.7%;
+    --foreground: 0 0% 96%;
+    --card: 0 0% 11%;
+    --card-foreground: 0 0% 96%;
+    --popover: 0 0% 11%;
+    --popover-foreground: 0 0% 96%;
+    --primary: 349 100% 60%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 0 0% 16%;
+    --secondary-foreground: 0 0% 96%;
+    --muted: 0 0% 16%;
+    --muted-foreground: 0 0% 63.9%;
+    --accent: 0 0% 16%;
+    --accent-foreground: 0 0% 96%;
+    --destructive: 9 72% 55%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 0 0% 18%;
+    --input: 0 0% 18%;
+    --ring: 349 100% 60%;
+  }
 }
 
 @layer base {
   * {
     @apply border-border;
   }
+
+  html {
+    color-scheme: light;
+    transition: background-color 0.2s ease, color 0.2s ease;
+  }
+
+  html.dark {
+    color-scheme: dark;
+  }
+
   body {
     @apply bg-background text-foreground;
     font-family:
@@ -54,7 +151,10 @@
       'Helvetica Neue',
       sans-serif;
     color: var(--palette-text-primary);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
+
   h1,
   h2,
   h3,
