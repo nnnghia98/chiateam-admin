@@ -1,0 +1,4 @@
+interface:
+  display_name: "UI Development"
+  short_description: "Build UI with shared components and clean structure"
+  default_prompt: "Use $ui-development to implement this page with existing UI primitives and proper file placement."

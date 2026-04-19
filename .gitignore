@@ -38,3 +38,6 @@ next-env.d.ts
 
 # editor
 .vscode/settings.json
+
+# local agent tooling
+.agent/.venv-skill-tools/
