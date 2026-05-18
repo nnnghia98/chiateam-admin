@@ -1,5 +1,5 @@
-import { DashboardOverview } from '@/components/dashboard-overview';
+import { redirect } from 'next/navigation';
 
 export default function Home() {
-  return <DashboardOverview />;
+  redirect('/dashboard');
 }

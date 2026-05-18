@@ -5,10 +5,11 @@ import { DragDropProvider, useDraggable, useDroppable } from '@dnd-kit/react';
 import { apiClient } from '@/lib/api-client';
 import { useAuth } from '@/contexts/auth-context';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
+  Banknote,
+  CalendarClock,
   RefreshCw,
   Save,
   Trash2,
@@ -20,6 +21,7 @@ import {
   RotateCcw,
   Pencil,
   Check,
+  ShieldCheck,
 } from 'lucide-react';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -167,7 +169,7 @@ function PlayerChip({
           : 'rgba(0,0,0,0.02) 0px 0px 0px 1px, rgba(0,0,0,0.04) 0px 2px 6px, rgba(0,0,0,0.06) 0px 3px 6px',
         transition: 'opacity 0.15s, box-shadow 0.15s',
       }}
-      className={`inline-flex items-center gap-1.5 pl-3 pr-2 py-2 min-h-[40px] rounded-[20px] bg-white dark:bg-[#2a2a2a] select-none text-sm font-medium text-[#222222] dark:text-[#f5f5f5] ${
+      className={`inline-flex items-center gap-1.5 pl-3 pr-2 py-2 min-h-[40px] rounded-airbnb border border-[#e7e7e7] bg-white select-none text-sm font-semibold text-[#222222] shadow-[rgba(0,0,0,0.04)_0px_2px_4px] dark:border-[#343434] dark:bg-[#242424] dark:text-[#f5f5f5] ${
         canEdit && !editing ? 'cursor-grab active:cursor-grabbing' : ''
       }`}
     >
@@ -175,7 +177,7 @@ function PlayerChip({
         <>
           <input
             autoFocus
-            className="outline-none text-sm font-medium w-24 bg-transparent text-[#222222] dark:text-[#f5f5f5] placeholder:text-[#6a6a6a]"
+            className="outline-none text-sm font-semibold w-24 bg-transparent text-[#222222] dark:text-[#f5f5f5] placeholder:text-[#6a6a6a]"
             value={draft}
             onChange={e => setDraft(e.target.value)}
             onBlur={commit}
@@ -186,7 +188,7 @@ function PlayerChip({
           />
           <button
             onClick={commit}
-            className="w-6 h-6 rounded-full flex items-center justify-center text-[#ff385c] hover:bg-[#fff0f2] dark:hover:bg-[#3a1020] transition-colors"
+            className="w-6 h-6 rounded-airbnb flex items-center justify-center text-[#ff385c] hover:bg-[#fff0f2] dark:hover:bg-[#3a1020] transition-colors"
           >
             <Check className="w-3 h-3" />
           </button>
@@ -201,13 +203,13 @@ function PlayerChip({
                   setDraft(player.name);
                   setEditing(true);
                 }}
-                className="w-6 h-6 rounded-full flex items-center justify-center text-[#c1c1c1] hover:text-[#6a6a6a] dark:hover:text-[#a3a3a3] hover:bg-[#f2f2f2] dark:hover:bg-[#3a3a3a] transition-colors"
+                className="w-6 h-6 rounded-airbnb flex items-center justify-center text-[#c1c1c1] hover:text-[#6a6a6a] dark:hover:text-[#a3a3a3] hover:bg-[#f2f2f2] dark:hover:bg-[#3a3a3a] transition-colors"
               >
                 <Pencil className="w-2.5 h-2.5" />
               </button>
               <button
                 onClick={onRemove}
-                className="w-6 h-6 rounded-full flex items-center justify-center text-[#c1c1c1] hover:text-[#ff385c] hover:bg-[#fff0f2] dark:hover:bg-[#3a1020] transition-colors"
+                className="w-6 h-6 rounded-airbnb flex items-center justify-center text-[#c1c1c1] hover:text-[#ff385c] hover:bg-[#fff0f2] dark:hover:bg-[#3a1020] transition-colors"
               >
                 <X className="w-2.5 h-2.5" />
               </button>
@@ -248,15 +250,15 @@ function TeamColumn({
           : 'rgba(0,0,0,0.02) 0px 0px 0px 1px, rgba(0,0,0,0.04) 0px 2px 6px, rgba(0,0,0,0.1) 0px 4px 8px',
         transition: 'box-shadow 0.15s',
       }}
-      className="flex flex-col rounded-[20px] bg-white dark:bg-[#1c1c1e] overflow-hidden min-h-[160px]"
+      className="flex flex-col rounded-airbnb border border-[#e7e7e7] bg-[#fbfbfb] dark:border-[#2e2e2e] dark:bg-[#1c1c1e] overflow-hidden min-h-[190px]"
     >
       {/* Accent stripe */}
-      <div style={{ backgroundColor: accent, height: 3 }} />
+      <div style={{ backgroundColor: accent, height: 4 }} />
 
       {/* Header */}
-      <div className="flex items-center justify-between px-4 pt-3 pb-2">
+      <div className="flex items-center justify-between px-4 pt-4 pb-3">
         <div className="flex items-center gap-2">
-          <span className="text-xs font-semibold uppercase tracking-[0.32px] text-[#222222] dark:text-[#f5f5f5]">
+          <span className="text-xs font-black uppercase tracking-[0.16em] text-[#222222] dark:text-[#f5f5f5]">
             {TEAM_LABELS[teamKey]}
           </span>
           <span
@@ -265,7 +267,7 @@ function TeamColumn({
               color: isDropTarget ? '#fff' : undefined,
               transition: 'background-color 0.15s, color 0.15s',
             }}
-            className="inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-[10px] text-[11px] font-semibold bg-[#f2f2f2] dark:bg-[#2a2a2a] text-[#6a6a6a] dark:text-[#a3a3a3]"
+            className="inline-flex items-center justify-center min-w-[24px] h-6 px-2 rounded-badge text-[11px] font-black bg-white dark:bg-[#2a2a2a] text-[#6a6a6a] dark:text-[#a3a3a3]"
           >
             {players.length}
           </span>
@@ -273,7 +275,7 @@ function TeamColumn({
         {canEdit && players.length > 0 && (
           <button
             onClick={onClear}
-            className="text-xs font-medium text-[#6a6a6a] dark:text-[#a3a3a3] hover:text-[#ff385c] flex items-center gap-1 transition-colors"
+            className="text-xs font-semibold text-[#6a6a6a] dark:text-[#a3a3a3] hover:text-[#ff385c] flex items-center gap-1 transition-colors"
           >
             <Trash2 className="w-3 h-3" />
             Clear
@@ -282,7 +284,7 @@ function TeamColumn({
       </div>
 
       {/* Players area */}
-      <div className="flex flex-wrap gap-2 px-4 pb-4 min-h-[80px] content-start">
+      <div className="flex flex-wrap gap-2 px-4 pb-4 min-h-[112px] content-start">
         {players.map(player => (
           <PlayerChip
             key={player.key}
@@ -294,7 +296,7 @@ function TeamColumn({
           />
         ))}
         {players.length === 0 && (
-          <p className="text-[13px] text-[#c1c1c1] dark:text-[#5a5a5a] self-center w-full text-center py-4">
+          <p className="text-[13px] text-[#a3a3a3] dark:text-[#5a5a5a] self-center w-full text-center py-6">
             Drop players here
           </p>
         )}
@@ -503,6 +505,14 @@ export default function NextMatchPage() {
 
   const teamKeys: TeamKey[] = ['bench', 'teamA', 'teamB'];
   const team3Keys: TeamKey[] = ['team3A', 'team3B', 'team3C'];
+  const activeTeamKeys = teamMode === '2' ? teamKeys : team3Keys;
+  const activePlayerCount = activeTeamKeys.reduce(
+    (sum, teamKey) => sum + storage[teamKey].length,
+    0
+  );
+  const totalCost = storage.tiensan + storage.tiennuoc;
+  const costPerPlayer =
+    activePlayerCount > 0 ? Math.round(totalCost / activePlayerCount) : 0;
 
   return (
     <DragDropProvider onDragEnd={handleDragEnd}>
@@ -523,84 +533,124 @@ export default function NextMatchPage() {
           </div>
         )}
 
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-[#222222] dark:text-[#f5f5f5] tracking-tight">
-              Next Match
-            </h1>
-            {storage.lastUpdated && (
-              <p className="text-xs text-[#6a6a6a] dark:text-[#a3a3a3] mt-0.5" suppressHydrationWarning>
-                Last updated: {new Date(storage.lastUpdated).toLocaleString()}
-              </p>
-            )}
-          </div>
-          <div className="flex items-center gap-2 flex-wrap">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => void load()}
-              className="border-[#c1c1c1] dark:border-[#2e2e2e] text-[#222] dark:text-[#f5f5f5] dark:hover:bg-[#2a2a2a] rounded-airbnb"
-            >
-              <RefreshCw className="w-4 h-4 mr-1" />
-              Refresh
-            </Button>
-            {canEdit && (
-              <Button
-                size="sm"
-                onClick={() => void save()}
-                disabled={saving || !dirty}
-                className="rounded-airbnb bg-[#222222] dark:bg-[#ff385c] hover:bg-[#333] dark:hover:bg-[#e00b41] text-white"
-              >
-                <Save className="w-4 h-4 mr-1" />
-                {saving ? 'Saving…' : dirty ? 'Save changes' : 'Saved'}
-              </Button>
-            )}
-          </div>
-        </div>
+        <section className="overflow-hidden rounded-airbnb border border-[#e7e7e7] bg-white shadow-airbnb-card dark:border-[#2e2e2e] dark:bg-[#1c1c1e]">
+          <div className="grid gap-0 lg:grid-cols-[minmax(0,1fr)_420px]">
+            <div className="relative p-5 sm:p-6">
+              <div className="absolute left-0 top-0 h-full w-1 bg-[#ff385c]" />
 
-        {/* Teams */}
-        <Card className="rounded-airbnb shadow-sm dark:bg-[#1c1c1e] dark:border-[#2e2e2e]">
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between gap-3 flex-wrap">
-              <div className="flex items-center gap-3">
-                <CardTitle className="text-base font-semibold text-[#222] dark:text-[#f5f5f5]">
-                  Players & Teams
-                </CardTitle>
-                {/* Mode toggle */}
-                <div
-                  className="inline-flex rounded-[20px] p-0.5"
-                  style={{
-                    boxShadow:
-                      'rgba(0,0,0,0.02) 0px 0px 0px 1px, rgba(0,0,0,0.04) 0px 2px 6px, rgba(0,0,0,0.06) 0px 3px 6px',
-                  }}
-                >
-                  <button
-                    onClick={() => setTeamMode('2')}
-                    className="px-3 py-1 rounded-[18px] text-xs font-semibold transition-colors"
-                    style={{
-                      backgroundColor:
-                        teamMode === '2' ? '#222222' : 'transparent',
-                      color: teamMode === '2' ? '#ffffff' : '#6a6a6a',
-                    }}
-                  >
-                    2 Teams
-                  </button>
-                  <button
-                    onClick={() => setTeamMode('3')}
-                    className="px-3 py-1 rounded-[18px] text-xs font-semibold transition-colors"
-                    style={{
-                      backgroundColor:
-                        teamMode === '3' ? '#222222' : 'transparent',
-                      color: teamMode === '3' ? '#ffffff' : '#6a6a6a',
-                    }}
-                  >
-                    3 Teams
-                  </button>
-                </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="inline-flex items-center gap-2 rounded-airbnb border border-[#ffd5dd] bg-[#fff0f2] px-3 py-1.5 text-xs font-black uppercase tracking-[0.16em] text-[#ff385c] dark:border-[#4a1725] dark:bg-[#3a1020]">
+                  <ShieldCheck className="h-3.5 w-3.5" />
+                  Chiateam
+                </span>
+                <span className="rounded-airbnb bg-[#f2f2f2] px-3 py-1.5 text-xs font-semibold text-[#6a6a6a] dark:bg-[#2a2a2a] dark:text-[#a3a3a3]">
+                  {teamMode} team mode
+                </span>
               </div>
+
+              <div className="mt-5 max-w-3xl">
+                <h1 className="text-2xl font-black leading-tight text-[#222222] dark:text-[#f5f5f5] sm:text-4xl">
+                  Match storage command center
+                </h1>
+                <p className="mt-3 max-w-2xl text-sm leading-6 text-[#6a6a6a] dark:text-[#a3a3a3] sm:text-base">
+                  Manage the bench, assign players, update match costs, mark
+                  the losing team, and reset bot storage from one focused board.
+                </p>
+              </div>
+
+              <div className="mt-6 flex flex-wrap items-center gap-3 text-xs font-semibold text-[#6a6a6a] dark:text-[#a3a3a3]">
+                <span className="inline-flex items-center gap-2 rounded-airbnb border border-[#e7e7e7] bg-[#fbfbfb] px-3 py-2 dark:border-[#2e2e2e] dark:bg-[#151515]">
+                  <CalendarClock className="h-3.5 w-3.5 text-[#ff385c]" />
+                  <span suppressHydrationWarning>
+                    {storage.lastUpdated
+                      ? `Last updated ${new Date(storage.lastUpdated).toLocaleString()}`
+                      : 'No update recorded'}
+                  </span>
+                </span>
+                {dirty && (
+                  <span className="rounded-airbnb border border-amber-200 bg-amber-50 px-3 py-2 text-amber-700 dark:border-amber-800 dark:bg-amber-950/60 dark:text-amber-400">
+                    Unsaved changes
+                  </span>
+                )}
+              </div>
+            </div>
+
+            <div className="grid border-t border-[#f2f2f2] bg-[#fbfbfb] p-4 dark:border-[#2e2e2e] dark:bg-[#151515] sm:grid-cols-3 lg:grid-cols-1 lg:border-l lg:border-t-0">
+              <div className="border-b border-[#e7e7e7] px-1 py-3 last:border-b-0 dark:border-[#2e2e2e] sm:border-b-0 sm:border-r sm:px-4 sm:last:border-r-0 lg:border-b lg:border-r-0">
+                <p className="text-[11px] font-black uppercase tracking-[0.16em] text-[#6a6a6a] dark:text-[#a3a3a3]">
+                  Bench
+                </p>
+                <p className="mt-1 text-3xl font-black text-[#222222] dark:text-[#f5f5f5]">
+                  {storage.bench.length}
+                </p>
+                <p className="text-xs text-[#6a6a6a] dark:text-[#a3a3a3]">
+                  waiting members
+                </p>
+              </div>
+              <div className="border-b border-[#e7e7e7] px-1 py-3 last:border-b-0 dark:border-[#2e2e2e] sm:border-b-0 sm:border-r sm:px-4 sm:last:border-r-0 lg:border-b lg:border-r-0">
+                <p className="text-[11px] font-black uppercase tracking-[0.16em] text-[#6a6a6a] dark:text-[#a3a3a3]">
+                  On pitch
+                </p>
+                <p className="mt-1 text-3xl font-black text-[#222222] dark:text-[#f5f5f5]">
+                  {activePlayerCount}
+                </p>
+                <p className="text-xs text-[#6a6a6a] dark:text-[#a3a3a3]">
+                  across {teamMode} teams
+                </p>
+              </div>
+              <div className="px-1 py-3 sm:px-4">
+                <p className="text-[11px] font-black uppercase tracking-[0.16em] text-[#2d6a4f] dark:text-emerald-400">
+                  Total cost
+                </p>
+                <p className="mt-1 text-3xl font-black text-[#222222] dark:text-[#f5f5f5]">
+                  {totalCost.toLocaleString()}₫
+                </p>
+                <p className="text-xs text-[#6a6a6a] dark:text-[#a3a3a3]">
+                  {costPerPlayer.toLocaleString()}₫ per player
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="rounded-airbnb border border-[#e7e7e7] bg-white shadow-airbnb-card dark:border-[#2e2e2e] dark:bg-[#151515]">
+          <div className="flex flex-col gap-4 border-b border-[#f2f2f2] px-5 py-4 dark:border-[#2e2e2e] lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex flex-wrap items-center gap-3">
+              <div>
+                <p className="text-xs font-black uppercase tracking-[0.16em] text-[#6a6a6a] dark:text-[#a3a3a3]">
+                  Formation control
+                </p>
+                <h2 className="mt-1 text-lg font-black text-[#222222] dark:text-[#f5f5f5]">
+                  Players & teams
+                </h2>
+              </div>
+              <div className="inline-flex rounded-airbnb border border-[#e7e7e7] bg-[#f7f7f7] p-1 dark:border-[#2e2e2e] dark:bg-[#222222]">
+                <button
+                  onClick={() => setTeamMode('2')}
+                  className={`rounded-airbnb px-3 py-1.5 text-xs font-black transition-colors ${
+                    teamMode === '2'
+                      ? 'bg-[#222222] text-white dark:bg-[#f5f5f5] dark:text-[#111111]'
+                      : 'text-[#6a6a6a] dark:text-[#a3a3a3]'
+                  }`}
+                >
+                  2 Teams
+                </button>
+                <button
+                  onClick={() => setTeamMode('3')}
+                  className={`rounded-airbnb px-3 py-1.5 text-xs font-black transition-colors ${
+                    teamMode === '3'
+                      ? 'bg-[#222222] text-white dark:bg-[#f5f5f5] dark:text-[#111111]'
+                      : 'text-[#6a6a6a] dark:text-[#a3a3a3]'
+                  }`}
+                >
+                  3 Teams
+                </button>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
               {canEdit && (
-                <div className="flex gap-2 items-center">
+                <>
                   <Input
                     placeholder="Player name"
                     value={addName}
@@ -608,24 +658,45 @@ export default function NextMatchPage() {
                     onKeyDown={e => {
                       if (e.key === 'Enter') addToBench();
                     }}
-                    className="h-8 text-sm w-36 rounded-airbnb"
+                    className="h-9 w-40 rounded-airbnb text-sm dark:border-[#2e2e2e] dark:bg-[#1c1c1e]"
                   />
                   <Button
                     size="sm"
                     variant="outline"
                     onClick={addToBench}
-                    className="h-8 border-[#c1c1c1] rounded-airbnb"
+                    className="h-9 rounded-airbnb border-[#c1c1c1] dark:border-[#2e2e2e]"
                   >
-                    <Plus className="w-3 h-3 mr-1" />
-                    Add to bench
+                    <Plus className="w-3.5 h-3.5 mr-1" />
+                    Add bench
                   </Button>
-                </div>
+                </>
+              )}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => void load()}
+                className="h-9 rounded-airbnb border-[#c1c1c1] text-[#222] dark:border-[#2e2e2e] dark:text-[#f5f5f5] dark:hover:bg-[#2a2a2a]"
+              >
+                <RefreshCw className="w-4 h-4 mr-1" />
+                Refresh
+              </Button>
+              {canEdit && (
+                <Button
+                  size="sm"
+                  onClick={() => void save()}
+                  disabled={saving || !dirty}
+                  className="h-9 rounded-airbnb bg-[#222222] text-white hover:bg-[#333] dark:bg-[#ff385c] dark:hover:bg-[#e00b41]"
+                >
+                  <Save className="w-4 h-4 mr-1" />
+                  {saving ? 'Saving…' : dirty ? 'Save' : 'Saved'}
+                </Button>
               )}
             </div>
-          </CardHeader>
-          <CardContent className="space-y-3">
+          </div>
+
+          <div className="space-y-3 p-4">
             {teamMode === '2' ? (
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
                 {teamKeys.map(teamKey => (
                   <TeamColumn
                     key={teamKey}
@@ -640,7 +711,6 @@ export default function NextMatchPage() {
               </div>
             ) : (
               <>
-                {/* Bench row */}
                 <TeamColumn
                   teamKey="bench"
                   players={storage.bench}
@@ -649,8 +719,7 @@ export default function NextMatchPage() {
                   onRename={(key, name) => renamePlayer('bench', key, name)}
                   onClear={() => clearTeam('bench')}
                 />
-                {/* 3 teams grid */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
                   {team3Keys.map(teamKey => (
                     <TeamColumn
                       key={teamKey}
@@ -665,28 +734,35 @@ export default function NextMatchPage() {
                 </div>
               </>
             )}
-          </CardContent>
-        </Card>
+          </div>
+        </section>
 
-        {/* Financial Info */}
-        <Card className="rounded-airbnb shadow-sm dark:bg-[#1c1c1e] dark:border-[#2e2e2e]">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base font-semibold text-[#222] dark:text-[#f5f5f5]">
-              Financial
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <section className="grid gap-4 xl:grid-cols-[0.8fr_1.2fr]">
+          <div className="rounded-airbnb border border-[#e7e7e7] bg-white p-5 shadow-airbnb-card dark:border-[#2e2e2e] dark:bg-[#1c1c1e]">
+            <div className="mb-5 flex items-center justify-between">
+              <div>
+                <p className="text-xs font-black uppercase tracking-[0.16em] text-[#6a6a6a] dark:text-[#a3a3a3]">
+                  Match ledger
+                </p>
+                <h2 className="mt-1 text-lg font-black text-[#222222] dark:text-[#f5f5f5]">
+                  Financial
+                </h2>
+              </div>
+              <div className="flex h-10 w-10 items-center justify-center rounded-airbnb bg-[#fff0f2] text-[#ff385c] dark:bg-[#3a1020]">
+                <Banknote className="h-5 w-5" />
+              </div>
+            </div>
+            <div className="grid grid-cols-1 gap-3">
               {/* Tiền sân */}
-              <div className="space-y-1">
-                <Label className="text-xs text-[#6a6a6a] dark:text-[#a3a3a3]">Tiền sân (₫)</Label>
+              <div className="rounded-airbnb bg-[#f7f7f7] p-4 dark:bg-[#2a2a2a]">
+                <Label className="text-xs font-semibold uppercase tracking-[0.12em] text-[#6a6a6a] dark:text-[#a3a3a3]">Tiền sân</Label>
                 {editingTiensan ? (
-                  <div className="flex gap-2">
+                  <div className="mt-3 flex gap-2">
                     <Input
                       type="number"
                       value={tiensanDraft}
                       onChange={e => setTiensanDraft(e.target.value)}
-                      className="h-8 text-sm rounded-airbnb"
+                      className="h-9 text-sm rounded-airbnb dark:border-[#2e2e2e] dark:bg-[#1c1c1e]"
                       onKeyDown={e => {
                         if (e.key === 'Enter') {
                           mutate(s => ({
@@ -700,7 +776,7 @@ export default function NextMatchPage() {
                     />
                     <Button
                       size="sm"
-                      className="h-8 rounded-airbnb"
+                      className="h-9 rounded-airbnb"
                       onClick={() => {
                         mutate(s => ({
                           ...s,
@@ -713,8 +789,8 @@ export default function NextMatchPage() {
                     </Button>
                   </div>
                 ) : (
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium text-[#222222] dark:text-[#f5f5f5]">
+                  <div className="mt-2 flex items-center justify-between gap-3">
+                    <span className="text-2xl font-black text-[#222222] dark:text-[#f5f5f5]">
                       {storage.tiensan.toLocaleString()}₫
                     </span>
                     {canEdit && (
@@ -733,15 +809,15 @@ export default function NextMatchPage() {
               </div>
 
               {/* Tiền nước */}
-              <div className="space-y-1">
-                <Label className="text-xs text-[#6a6a6a] dark:text-[#a3a3a3]">Tiền nước (₫)</Label>
+              <div className="rounded-airbnb bg-[#f7f7f7] p-4 dark:bg-[#2a2a2a]">
+                <Label className="text-xs font-semibold uppercase tracking-[0.12em] text-[#6a6a6a] dark:text-[#a3a3a3]">Tiền nước</Label>
                 {editingTiennuoc ? (
-                  <div className="flex gap-2">
+                  <div className="mt-3 flex gap-2">
                     <Input
                       type="number"
                       value={tiennuocDraft}
                       onChange={e => setTiennuocDraft(e.target.value)}
-                      className="h-8 text-sm rounded-airbnb"
+                      className="h-9 text-sm rounded-airbnb dark:border-[#2e2e2e] dark:bg-[#1c1c1e]"
                       onKeyDown={e => {
                         if (e.key === 'Enter') {
                           mutate(s => ({
@@ -755,7 +831,7 @@ export default function NextMatchPage() {
                     />
                     <Button
                       size="sm"
-                      className="h-8 rounded-airbnb"
+                      className="h-9 rounded-airbnb"
                       onClick={() => {
                         mutate(s => ({
                           ...s,
@@ -768,8 +844,8 @@ export default function NextMatchPage() {
                     </Button>
                   </div>
                 ) : (
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium text-[#222222] dark:text-[#f5f5f5]">
+                  <div className="mt-2 flex items-center justify-between gap-3">
+                    <span className="text-2xl font-black text-[#222222] dark:text-[#f5f5f5]">
                       {storage.tiennuoc.toLocaleString()}₫
                     </span>
                     {canEdit && (
@@ -788,26 +864,28 @@ export default function NextMatchPage() {
               </div>
 
               {/* Team thua */}
-              <div className="space-y-1">
-                <Label className="text-xs text-[#6a6a6a] dark:text-[#a3a3a3]">Team Thua</Label>
-                <span className="text-sm font-medium text-[#222222] dark:text-[#f5f5f5]">
+              <div className="rounded-airbnb bg-[#171717] p-4 text-white">
+                <Label className="text-xs font-semibold uppercase tracking-[0.12em] text-white/50">Team Thua</Label>
+                <span className="mt-2 block text-2xl font-black">
                   {storage.teamThua ?? (
-                    <span className="text-[#aaa] dark:text-[#5a5a5a] italic">None</span>
+                    <span className="text-white/35 italic">None</span>
                   )}
                 </span>
               </div>
             </div>
-          </CardContent>
-        </Card>
+          </div>
 
-        {/* Active Vote */}
-        <Card className="rounded-airbnb shadow-sm dark:bg-[#1c1c1e] dark:border-[#2e2e2e]">
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-base font-semibold text-[#222] dark:text-[#f5f5f5] flex items-center gap-2">
-                <Vote className="w-4 h-4 text-[#ff385c]" />
-                Active Vote
-              </CardTitle>
+          <div className="rounded-airbnb border border-[#e7e7e7] bg-white p-5 shadow-airbnb-card dark:border-[#2e2e2e] dark:bg-[#1c1c1e]">
+            <div className="mb-5 flex items-center justify-between gap-3">
+              <div>
+                <p className="text-xs font-black uppercase tracking-[0.16em] text-[#6a6a6a] dark:text-[#a3a3a3]">
+                  Vote intake
+                </p>
+                <h2 className="mt-1 flex items-center gap-2 text-lg font-black text-[#222222] dark:text-[#f5f5f5]">
+                  <Vote className="w-4 h-4 text-[#ff385c]" />
+                  Active Vote
+                </h2>
+              </div>
               {canEdit && storage.activeVote && (
                 <Button
                   size="sm"
@@ -821,8 +899,6 @@ export default function NextMatchPage() {
                 </Button>
               )}
             </div>
-          </CardHeader>
-          <CardContent>
             {storage.activeVote ? (
               <div className="space-y-2 text-sm">
                 <p>
@@ -854,12 +930,12 @@ export default function NextMatchPage() {
                       return (
                         <div
                           key={idx}
-                          className="bg-[#f7f7f7] border border-[#e0e0e0] rounded-lg px-3 py-1.5 min-w-[70px]"
+                          className="bg-[#f7f7f7] border border-[#e0e0e0] rounded-airbnb px-3 py-2 min-w-[86px] dark:bg-[#2a2a2a] dark:border-[#343434]"
                         >
-                          <p className="text-xs font-bold text-[#222]">
+                          <p className="text-xs font-bold text-[#222] dark:text-[#f5f5f5]">
                             {option}
                           </p>
-                          <p className="text-[10px] text-[#888]">
+                          <p className="text-[10px] text-[#888] dark:text-[#a3a3a3]">
                             {voterNames.length > 0
                               ? voterNames.join(', ')
                               : 'none'}
@@ -884,19 +960,16 @@ export default function NextMatchPage() {
             ) : (
               <p className="text-sm text-[#aaa] italic">No active vote</p>
             )}
-          </CardContent>
-        </Card>
+          </div>
+        </section>
 
         {/* Danger Zone */}
         {canEdit && (
-          <Card className="rounded-airbnb shadow-sm border-red-200 dark:border-red-900 dark:bg-[#1c1c1e]">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base font-semibold text-red-600 dark:text-red-400 flex items-center gap-2">
+          <section className="rounded-airbnb border border-red-200 bg-red-50 p-5 shadow-airbnb-card dark:border-red-900 dark:bg-[#1c1c1e]">
+            <div className="mb-3 flex items-center gap-2 text-base font-black text-red-600 dark:text-red-400">
                 <AlertTriangle className="w-4 h-4" />
                 Danger Zone
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
+            </div>
               <div className="flex flex-wrap gap-3">
                 <Button
                   variant="outline"
@@ -912,8 +985,7 @@ export default function NextMatchPage() {
                 &quot;Reset all storage&quot; clears all teams, bench, and vote
                 data back to defaults.
               </p>
-            </CardContent>
-          </Card>
+          </section>
         )}
       </div>
     </DragDropProvider>
