@@ -13,7 +13,6 @@ import {
   Eye,
   Menu,
   Swords,
-  LayoutDashboard,
   ChevronLeft,
   ChevronRight,
 } from 'lucide-react';
@@ -30,7 +29,6 @@ import {
 } from '@/components/ui/sheet';
 
 const links = [
-  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/next-match', label: 'Next Match', icon: Swords },
   { href: '/players', label: 'Players', icon: Users },
   { href: '/matches', label: 'Matches', icon: Calendar },
