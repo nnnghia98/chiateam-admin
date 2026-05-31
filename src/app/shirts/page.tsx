@@ -29,6 +29,21 @@ interface ShirtSample {
 }
 
 const STORAGE_KEY = 'chiateam-shirt-registration';
+const XLSX_MIME =
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+
+interface XlsxPart {
+  path: string;
+  data: Uint8Array;
+}
+
+interface SampleImageExport {
+  bytes: Uint8Array;
+  extension: 'png' | 'jpg' | 'gif';
+  mime: 'image/png' | 'image/jpeg' | 'image/gif';
+  widthPx: number;
+  heightPx: number;
+}
 
 function createEntry(): ShirtEntry {
   return {
@@ -90,8 +105,9 @@ function normalizeSample(value: unknown): ShirtSample {
   };
 }
 
-function escapeHtml(value: string) {
+function escapeXml(value: string) {
   return value
+    .replace(/[^\u0009\u000a\u000d\u0020-\ud7ff\ue000-\ufffd]/g, '')
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
@@ -99,7 +115,462 @@ function escapeHtml(value: string) {
     .replace(/'/g, '&#39;');
 }
 
-function downloadExcel(entries: ShirtEntry[], sample: ShirtSample) {
+function textBytes(value: string) {
+  return new TextEncoder().encode(value);
+}
+
+function concatBytes(chunks: Uint8Array[]) {
+  const totalLength = chunks.reduce((sum, chunk) => sum + chunk.length, 0);
+  const output = new Uint8Array(totalLength);
+  let offset = 0;
+
+  chunks.forEach(chunk => {
+    output.set(chunk, offset);
+    offset += chunk.length;
+  });
+
+  return output;
+}
+
+const crcTable = (() => {
+  const table = new Uint32Array(256);
+
+  for (let index = 0; index < 256; index += 1) {
+    let value = index;
+
+    for (let bit = 0; bit < 8; bit += 1) {
+      value = value & 1 ? 0xedb88320 ^ (value >>> 1) : value >>> 1;
+    }
+
+    table[index] = value >>> 0;
+  }
+
+  return table;
+})();
+
+function crc32(data: Uint8Array) {
+  let crc = 0xffffffff;
+
+  for (let index = 0; index < data.length; index += 1) {
+    crc = crcTable[(crc ^ data[index]) & 0xff] ^ (crc >>> 8);
+  }
+
+  return (crc ^ 0xffffffff) >>> 0;
+}
+
+function writeUint16(view: DataView, offset: number, value: number) {
+  view.setUint16(offset, value, true);
+}
+
+function writeUint32(view: DataView, offset: number, value: number) {
+  view.setUint32(offset, value, true);
+}
+
+function createStoredZip(parts: XlsxPart[]) {
+  const localChunks: Uint8Array[] = [];
+  const centralChunks: Uint8Array[] = [];
+  let offset = 0;
+
+  parts.forEach(part => {
+    const nameBytes = textBytes(part.path);
+    const localHeader = new Uint8Array(30 + nameBytes.length);
+    const localView = new DataView(localHeader.buffer);
+    const crc = crc32(part.data);
+
+    writeUint32(localView, 0, 0x04034b50);
+    writeUint16(localView, 4, 20);
+    writeUint16(localView, 6, 0x0800);
+    writeUint16(localView, 8, 0);
+    writeUint16(localView, 10, 0);
+    writeUint16(localView, 12, 0);
+    writeUint32(localView, 14, crc);
+    writeUint32(localView, 18, part.data.length);
+    writeUint32(localView, 22, part.data.length);
+    writeUint16(localView, 26, nameBytes.length);
+    writeUint16(localView, 28, 0);
+    localHeader.set(nameBytes, 30);
+
+    localChunks.push(localHeader, part.data);
+
+    const centralHeader = new Uint8Array(46 + nameBytes.length);
+    const centralView = new DataView(centralHeader.buffer);
+
+    writeUint32(centralView, 0, 0x02014b50);
+    writeUint16(centralView, 4, 20);
+    writeUint16(centralView, 6, 20);
+    writeUint16(centralView, 8, 0x0800);
+    writeUint16(centralView, 10, 0);
+    writeUint16(centralView, 12, 0);
+    writeUint16(centralView, 14, 0);
+    writeUint32(centralView, 16, crc);
+    writeUint32(centralView, 20, part.data.length);
+    writeUint32(centralView, 24, part.data.length);
+    writeUint16(centralView, 28, nameBytes.length);
+    writeUint16(centralView, 30, 0);
+    writeUint16(centralView, 32, 0);
+    writeUint16(centralView, 34, 0);
+    writeUint16(centralView, 36, 0);
+    writeUint32(centralView, 38, 0);
+    writeUint32(centralView, 42, offset);
+    centralHeader.set(nameBytes, 46);
+
+    centralChunks.push(centralHeader);
+    offset += localHeader.length + part.data.length;
+  });
+
+  const centralDirectory = concatBytes(centralChunks);
+  const end = new Uint8Array(22);
+  const endView = new DataView(end.buffer);
+
+  writeUint32(endView, 0, 0x06054b50);
+  writeUint16(endView, 4, 0);
+  writeUint16(endView, 6, 0);
+  writeUint16(endView, 8, parts.length);
+  writeUint16(endView, 10, parts.length);
+  writeUint32(endView, 12, centralDirectory.length);
+  writeUint32(endView, 16, offset);
+  writeUint16(endView, 20, 0);
+
+  return concatBytes([...localChunks, centralDirectory, end]);
+}
+
+function dataUrlToBytes(dataUrl: string) {
+  const match = dataUrl.match(/^data:([^;,]+)(;base64)?,(.*)$/);
+
+  if (!match) return null;
+
+  const [, mime, base64Marker, payload] = match;
+  const binary = base64Marker ? atob(payload) : decodeURIComponent(payload);
+  const bytes = new Uint8Array(binary.length);
+
+  for (let index = 0; index < binary.length; index += 1) {
+    bytes[index] = binary.charCodeAt(index);
+  }
+
+  return {
+    bytes,
+    mime: mime.toLowerCase(),
+  };
+}
+
+function getSampleImageSize(dataUrl: string) {
+  return new Promise<{ width: number; height: number }>(resolve => {
+    const image = new window.Image();
+
+    image.onload = () => {
+      resolve({
+        width: image.naturalWidth || 240,
+        height: image.naturalHeight || 180,
+      });
+    };
+    image.onerror = () => {
+      resolve({ width: 240, height: 180 });
+    };
+    image.src = dataUrl;
+  });
+}
+
+async function prepareSampleImage(
+  sample: ShirtSample
+): Promise<SampleImageExport | null> {
+  if (!sample.imageDataUrl) return null;
+
+  const image = dataUrlToBytes(sample.imageDataUrl);
+
+  if (!image) return null;
+
+  const imageType =
+    image.mime === 'image/png'
+      ? { extension: 'png' as const, mime: 'image/png' as const }
+      : image.mime === 'image/jpeg' || image.mime === 'image/jpg'
+        ? { extension: 'jpg' as const, mime: 'image/jpeg' as const }
+        : image.mime === 'image/gif'
+          ? { extension: 'gif' as const, mime: 'image/gif' as const }
+          : null;
+
+  if (!imageType) return null;
+
+  const dimensions = await getSampleImageSize(sample.imageDataUrl);
+  const maxWidth = 220;
+  const maxHeight = 160;
+  const scale = Math.min(
+    maxWidth / dimensions.width,
+    maxHeight / dimensions.height,
+    1
+  );
+
+  return {
+    bytes: image.bytes,
+    extension: imageType.extension,
+    mime: imageType.mime,
+    widthPx: Math.max(1, Math.round(dimensions.width * scale)),
+    heightPx: Math.max(1, Math.round(dimensions.height * scale)),
+  };
+}
+
+function xlsxCell(
+  cell: string,
+  value: string | number | null,
+  style = 1,
+  asText = true
+) {
+  const styleAttribute = style ? ` s="${style}"` : '';
+
+  if (value === null || value === '') {
+    return `<c r="${cell}"${styleAttribute}/>`;
+  }
+
+  if (typeof value === 'number' && !asText) {
+    return `<c r="${cell}"${styleAttribute}><v>${value}</v></c>`;
+  }
+
+  return `<c r="${cell}"${styleAttribute} t="inlineStr"><is><t>${escapeXml(String(value))}</t></is></c>`;
+}
+
+function xlsxRow(index: number, cells: string[], height?: number) {
+  const heightAttributes = height ? ` ht="${height}" customHeight="1"` : '';
+
+  return `<row r="${index}"${heightAttributes}>${cells.join('')}</row>`;
+}
+
+function createWorksheetXml(
+  entries: ShirtEntry[],
+  sample: ShirtSample,
+  image: SampleImageExport | null
+) {
+  const tableStartRow = 7;
+  const lastRow = tableStartRow + entries.length - 1;
+  const rows = [
+    xlsxRow(1, [xlsxCell('A1', 'Sample shirt', 3)]),
+    xlsxRow(2, [
+      xlsxCell('A2', 'Image file', 4),
+      xlsxCell('B2', sample.imageName || 'No sample attached'),
+      xlsxCell('C2', null),
+    ]),
+    xlsxRow(
+      3,
+      [
+        xlsxCell('A3', 'Sample image', 4),
+        xlsxCell(
+          'B3',
+          image
+            ? 'Attached in this workbook.'
+            : 'No sample image attached.'
+        ),
+        xlsxCell('C3', null),
+      ],
+      122
+    ),
+    xlsxRow(5, [xlsxCell('A5', 'Shirt registrations', 3)]),
+    xlsxRow(6, [
+      xlsxCell('A6', '#', 2),
+      xlsxCell('B6', 'Player name', 2),
+      xlsxCell('C6', 'Number (optional)', 2),
+    ]),
+    ...entries.map((entry, index) =>
+      xlsxRow(tableStartRow + index, [
+        xlsxCell(`A${tableStartRow + index}`, index + 1, 1, false),
+        xlsxCell(`B${tableStartRow + index}`, entry.playerName),
+        xlsxCell(`C${tableStartRow + index}`, entry.shirtNumber ?? ''),
+      ])
+    ),
+  ].join('');
+
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+  <dimension ref="A1:C${lastRow}"/>
+  <sheetViews>
+    <sheetView workbookViewId="0">
+      <pane ySplit="6" topLeftCell="A7" activePane="bottomLeft" state="frozen"/>
+      <selection pane="bottomLeft"/>
+    </sheetView>
+  </sheetViews>
+  <sheetFormatPr defaultRowHeight="18"/>
+  <cols>
+    <col min="1" max="1" width="8" customWidth="1"/>
+    <col min="2" max="2" width="34" customWidth="1"/>
+    <col min="3" max="3" width="20" customWidth="1"/>
+  </cols>
+  <sheetData>${rows}</sheetData>
+  <mergeCells count="4">
+    <mergeCell ref="A1:C1"/>
+    <mergeCell ref="B2:C2"/>
+    <mergeCell ref="B3:C3"/>
+    <mergeCell ref="A5:C5"/>
+  </mergeCells>
+  ${image ? '<drawing r:id="rId1"/>' : ''}
+  <pageMargins left="0.7" right="0.7" top="0.75" bottom="0.75" header="0.3" footer="0.3"/>
+</worksheet>`;
+}
+
+function createContentTypesXml(image: SampleImageExport | null) {
+  const imageDefault = image
+    ? `<Default Extension="${image.extension}" ContentType="${image.mime}"/>`
+    : '';
+  const drawingOverride = image
+    ? '<Override PartName="/xl/drawings/drawing1.xml" ContentType="application/vnd.openxmlformats-officedocument.drawing+xml"/>'
+    : '';
+
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  ${imageDefault}
+  <Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>
+  <Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>
+  <Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>
+  ${drawingOverride}
+</Types>`;
+}
+
+function createStylesXml() {
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+  <fonts count="3">
+    <font><sz val="11"/><color rgb="FF222222"/><name val="Arial"/></font>
+    <font><b/><sz val="11"/><color rgb="FFFFFFFF"/><name val="Arial"/></font>
+    <font><b/><sz val="11"/><color rgb="FF222222"/><name val="Arial"/></font>
+  </fonts>
+  <fills count="4">
+    <fill><patternFill patternType="none"/></fill>
+    <fill><patternFill patternType="gray125"/></fill>
+    <fill><patternFill patternType="solid"><fgColor rgb="FF222222"/><bgColor indexed="64"/></patternFill></fill>
+    <fill><patternFill patternType="solid"><fgColor rgb="FFFF385C"/><bgColor indexed="64"/></patternFill></fill>
+  </fills>
+  <borders count="2">
+    <border><left/><right/><top/><bottom/><diagonal/></border>
+    <border>
+      <left style="thin"><color rgb="FFD9D9D9"/></left>
+      <right style="thin"><color rgb="FFD9D9D9"/></right>
+      <top style="thin"><color rgb="FFD9D9D9"/></top>
+      <bottom style="thin"><color rgb="FFD9D9D9"/></bottom>
+      <diagonal/>
+    </border>
+  </borders>
+  <cellStyleXfs count="1">
+    <xf numFmtId="0" fontId="0" fillId="0" borderId="0"/>
+  </cellStyleXfs>
+  <cellXfs count="5">
+    <xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>
+    <xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyBorder="1"/>
+    <xf numFmtId="0" fontId="1" fillId="2" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1"/>
+    <xf numFmtId="0" fontId="1" fillId="3" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1"/>
+    <xf numFmtId="0" fontId="2" fillId="0" borderId="1" xfId="0" applyFont="1" applyBorder="1"/>
+  </cellXfs>
+  <cellStyles count="1">
+    <cellStyle name="Normal" xfId="0" builtinId="0"/>
+  </cellStyles>
+</styleSheet>`;
+}
+
+function createDrawingXml(image: SampleImageExport) {
+  const emuPerPixel = 9525;
+
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<xdr:wsDr xmlns:xdr="http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">
+  <xdr:oneCellAnchor>
+    <xdr:from>
+      <xdr:col>1</xdr:col>
+      <xdr:colOff>0</xdr:colOff>
+      <xdr:row>2</xdr:row>
+      <xdr:rowOff>0</xdr:rowOff>
+    </xdr:from>
+    <xdr:ext cx="${image.widthPx * emuPerPixel}" cy="${image.heightPx * emuPerPixel}"/>
+    <xdr:pic>
+      <xdr:nvPicPr>
+        <xdr:cNvPr id="1" name="Sample shirt"/>
+        <xdr:cNvPicPr/>
+      </xdr:nvPicPr>
+      <xdr:blipFill>
+        <a:blip xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" r:embed="rId1"/>
+        <a:stretch><a:fillRect/></a:stretch>
+      </xdr:blipFill>
+      <xdr:spPr>
+        <a:prstGeom prst="rect"><a:avLst/></a:prstGeom>
+      </xdr:spPr>
+    </xdr:pic>
+    <xdr:clientData/>
+  </xdr:oneCellAnchor>
+</xdr:wsDr>`;
+}
+
+async function createXlsxBlob(entries: ShirtEntry[], sample: ShirtSample) {
+  const image = await prepareSampleImage(sample);
+
+  if (sample.imageDataUrl && !image) {
+    throw new Error('UNSUPPORTED_SAMPLE_IMAGE');
+  }
+
+  const parts: XlsxPart[] = [
+    {
+      path: '[Content_Types].xml',
+      data: textBytes(createContentTypesXml(image)),
+    },
+    {
+      path: '_rels/.rels',
+      data: textBytes(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>
+</Relationships>`),
+    },
+    {
+      path: 'xl/workbook.xml',
+      data: textBytes(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+  <sheets>
+    <sheet name="Registration" sheetId="1" r:id="rId1"/>
+  </sheets>
+</workbook>`),
+    },
+    {
+      path: 'xl/_rels/workbook.xml.rels',
+      data: textBytes(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>
+  <Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>
+</Relationships>`),
+    },
+    {
+      path: 'xl/styles.xml',
+      data: textBytes(createStylesXml()),
+    },
+    {
+      path: 'xl/worksheets/sheet1.xml',
+      data: textBytes(createWorksheetXml(entries, sample, image)),
+    },
+  ];
+
+  if (image) {
+    parts.push(
+      {
+        path: 'xl/worksheets/_rels/sheet1.xml.rels',
+        data: textBytes(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/drawing" Target="../drawings/drawing1.xml"/>
+</Relationships>`),
+      },
+      {
+        path: 'xl/drawings/drawing1.xml',
+        data: textBytes(createDrawingXml(image)),
+      },
+      {
+        path: 'xl/drawings/_rels/drawing1.xml.rels',
+        data: textBytes(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="../media/image1.${image.extension}"/>
+</Relationships>`),
+      },
+      {
+        path: `xl/media/image1.${image.extension}`,
+        data: image.bytes,
+      }
+    );
+  }
+
+  return new Blob([createStoredZip(parts)], { type: XLSX_MIME });
+}
+
+async function downloadExcel(entries: ShirtEntry[], sample: ShirtSample) {
   const rows = entries.filter(
     entry => entry.playerName.trim() || entry.shirtNumber?.trim()
   );
@@ -109,82 +580,30 @@ function downloadExcel(entries: ShirtEntry[], sample: ShirtSample) {
     return;
   }
 
-  const bodyRows = rows
-    .map(
-      (entry, index) => `
-        <tr>
-          <td>${index + 1}</td>
-          <td>${escapeHtml(entry.playerName)}</td>
-          <td style="mso-number-format:'\\@';">${escapeHtml(entry.shirtNumber ?? '')}</td>
-        </tr>`
-    )
-    .join('');
+  let blob: Blob;
 
-  const workbook = `
-    <!doctype html>
-    <html>
-      <head>
-        <meta charset="utf-8" />
-        <style>
-          body { font-family: Arial, sans-serif; }
-          table { border-collapse: collapse; width: 100%; }
-          th, td { border: 1px solid #d9d9d9; padding: 8px; vertical-align: middle; }
-          th { background: #222222; color: #ffffff; text-align: left; }
-          img { object-fit: contain; border-radius: 8px; }
-          .meta th { background: #ff385c; }
-          .gap { height: 16px; border: 0; }
-        </style>
-      </head>
-      <body>
-        <table class="meta">
-          <thead>
-            <tr>
-              <th colspan="3">Sample shirt</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td>Image file</td>
-              <td colspan="2">${escapeHtml(sample.imageName || 'No sample attached')}</td>
-            </tr>
-            <tr>
-              <td>Sample image</td>
-              <td colspan="2">${
-                sample.imageDataUrl
-                  ? `<img src="${escapeHtml(sample.imageDataUrl)}" width="160" height="160" />`
-                  : ''
-              }</td>
-            </tr>
-          </tbody>
-        </table>
-        <div class="gap"></div>
-        <table>
-          <thead>
-            <tr>
-              <th>#</th>
-              <th>Player name</th>
-              <th>Number (optional)</th>
-            </tr>
-          </thead>
-          <tbody>${bodyRows}</tbody>
-        </table>
-      </body>
-    </html>
-  `;
+  try {
+    blob = await createXlsxBlob(rows, sample);
+  } catch (error) {
+    if (error instanceof Error && error.message === 'UNSUPPORTED_SAMPLE_IMAGE') {
+      alert('Excel export supports PNG, JPG, or GIF sample images.');
+      return;
+    }
 
-  const blob = new Blob(['\ufeff', workbook], {
-    type: 'application/vnd.ms-excel;charset=utf-8;',
-  });
+    alert('Could not create the Excel file. Please try again.');
+    return;
+  }
+
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
   link.download = `chiateam-shirt-registration-${new Date()
     .toISOString()
-    .slice(0, 10)}.xls`;
+    .slice(0, 10)}.xlsx`;
   document.body.appendChild(link);
   link.click();
   link.remove();
-  URL.revokeObjectURL(url);
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
 export default function ShirtsPage() {
@@ -264,8 +683,8 @@ export default function ShirtsPage() {
 
     if (!file) return;
 
-    if (!file.type.startsWith('image/')) {
-      alert('Please attach an image file.');
+    if (!['image/png', 'image/jpeg', 'image/gif'].includes(file.type)) {
+      alert('Please attach a PNG, JPG, or GIF image.');
       return;
     }
 
@@ -343,7 +762,7 @@ export default function ShirtsPage() {
                 )}
                 <Button
                   type="button"
-                  onClick={() => downloadExcel(entries, sample)}
+                  onClick={() => void downloadExcel(entries, sample)}
                   className="rounded-airbnb bg-[#222222] text-white hover:bg-[#ff385c] dark:bg-[#ff385c] dark:hover:bg-[#e00b41]"
                 >
                   <Download className="mr-2 h-4 w-4" />
@@ -429,7 +848,7 @@ export default function ShirtsPage() {
               <input
                 id="sample-shirt-image"
                 type="file"
-                accept="image/*"
+                accept="image/png,image/jpeg,image/gif"
                 className="hidden"
                 onChange={attachSampleImage}
               />
