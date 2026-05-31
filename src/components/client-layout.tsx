@@ -3,7 +3,6 @@
 import { useEffect } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { AuthProvider, useAuth } from '@/contexts/auth-context';
-import { SidebarProvider } from '@/contexts/sidebar-context';
 import { Navigation } from '@/components/navigation';
 
 function ProtectedLayout({ children }: { children: React.ReactNode }) {
@@ -60,9 +59,7 @@ function ProtectedLayout({ children }: { children: React.ReactNode }) {
 export function ClientLayout({ children }: { children: React.ReactNode }) {
   return (
     <AuthProvider>
-      <SidebarProvider>
-        <ProtectedLayout>{children}</ProtectedLayout>
-      </SidebarProvider>
+      <ProtectedLayout>{children}</ProtectedLayout>
     </AuthProvider>
   );
 }

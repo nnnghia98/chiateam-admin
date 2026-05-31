@@ -216,7 +216,6 @@ export function DashboardOverview() {
     <div className="space-y-5">
       <section className="grid gap-4 xl:grid-cols-[1.35fr_0.65fr]">
         <div className="relative overflow-hidden rounded-airbnb border border-[#e7e7e7] bg-[#fcfbf8] p-5 shadow-airbnb-card dark:border-[#2e2e2e] dark:bg-[#151515] sm:p-6">
-          <div className="absolute inset-x-6 top-24 hidden h-px bg-[#d7ded7] dark:bg-[#28362d] sm:block" />
           <div className="absolute bottom-0 right-0 h-40 w-40 translate-x-12 translate-y-12 rounded-full border border-[#d7ded7] dark:border-[#28362d]" />
           <div className="relative flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
             <div className="max-w-2xl">
