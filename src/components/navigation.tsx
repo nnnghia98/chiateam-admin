@@ -13,6 +13,7 @@ import {
   Eye,
   Menu,
   Swords,
+  Shirt,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/auth-context';
 import { ThemeToggle } from '@/components/theme-toggle';
@@ -28,6 +29,7 @@ import {
 const links = [
   { href: '/next-match', label: 'Next Match', icon: Swords },
   { href: '/players', label: 'Players', icon: Users },
+  { href: '/shirts', label: 'Shirts', icon: Shirt },
   { href: '/matches', label: 'Matches', icon: Calendar },
   { href: '/leaderboard', label: 'Leaderboard', icon: Trophy },
 ];
