@@ -36,7 +36,7 @@ const links = [
 
 function SidebarTooltip({ children }: { children: React.ReactNode }) {
   return (
-    <span className="pointer-events-none absolute left-full top-1/2 z-50 ml-3 -translate-y-1/2 translate-x-1 whitespace-nowrap rounded-airbnb bg-[#222222] px-2.5 py-1.5 text-xs font-semibold text-white opacity-0 shadow-airbnb-card transition-all duration-150 group-hover:translate-x-0 group-hover:opacity-100 group-focus-visible:translate-x-0 group-focus-visible:opacity-100 group-focus-within:translate-x-0 group-focus-within:opacity-100 dark:bg-white dark:text-[#222222]">
+    <span className="pointer-events-none absolute left-full top-1/2 z-50 ml-3 -translate-y-1/2 translate-x-1 whitespace-nowrap rounded-airbnb bg-[#222222] px-2.5 py-1.5 text-xs font-semibold text-white opacity-0 shadow-airbnb-card transition-all duration-150 group-hover:translate-x-0 group-hover:opacity-100 dark:bg-white dark:text-[#222222]">
       {children}
     </span>
   );

@@ -2,11 +2,9 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import {
-  Activity,
   CalendarDays,
   Flame,
   Gauge,
-  MapPin,
   Medal,
   ShieldCheck,
   Sparkles,
@@ -38,19 +36,6 @@ const dateFormatter = new Intl.DateTimeFormat('en', {
   month: 'short',
   day: 'numeric',
 });
-
-const fullDateFormatter = new Intl.DateTimeFormat('en', {
-  weekday: 'short',
-  month: 'short',
-  day: 'numeric',
-});
-
-function formatDate(value?: string) {
-  if (!value) return 'No date';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return 'No date';
-  return fullDateFormatter.format(date);
-}
 
 function formatShortDate(value?: string) {
   if (!value) return '--';
@@ -86,10 +71,7 @@ function getOutcome(match: Match) {
 function DashboardSkeleton() {
   return (
     <div className="space-y-5">
-      <div className="grid gap-4 xl:grid-cols-[1.35fr_0.65fr]">
-        <Skeleton className="h-[280px] rounded-airbnb" />
-        <Skeleton className="h-[280px] rounded-airbnb" />
-      </div>
+      <Skeleton className="h-[280px] rounded-airbnb" />
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {Array.from({ length: 4 }).map((_, index) => (
           <Skeleton key={index} className="h-32 rounded-airbnb" />
@@ -155,7 +137,6 @@ export function DashboardOverview() {
     }
   };
 
-  const featuredMatch = stats.recentMatches[0];
   const topScorer = stats.topScorers[0];
 
   const dashboardMetrics = useMemo(() => {
@@ -214,50 +195,7 @@ export function DashboardOverview() {
 
   return (
     <div className="space-y-5">
-      <section className="grid gap-4 xl:grid-cols-[1.35fr_0.65fr]">
-        <div className="relative overflow-hidden rounded-airbnb border border-[#e7e7e7] bg-[#fcfbf8] p-5 shadow-airbnb-card dark:border-[#2e2e2e] dark:bg-[#151515] sm:p-6">
-          <div className="absolute bottom-0 right-0 h-40 w-40 translate-x-12 translate-y-12 rounded-full border border-[#d7ded7] dark:border-[#28362d]" />
-          <div className="relative flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-            <div className="max-w-2xl">
-              <div className="mb-4 inline-flex items-center gap-2 rounded-airbnb border border-[#e7e7e7] bg-white px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.16em] text-[#6a6a6a] dark:border-[#2e2e2e] dark:bg-[#1c1c1e] dark:text-[#a3a3a3]">
-                <Activity className="h-3.5 w-3.5 text-[#ff385c]" />
-                Team control room
-              </div>
-              <h1 className="max-w-3xl text-3xl font-bold leading-tight tracking-tight text-[#222222] dark:text-[#f5f5f5] sm:text-5xl">
-                Chiateam match intelligence
-              </h1>
-              <p className="mt-3 max-w-xl text-sm leading-6 text-[#6a6a6a] dark:text-[#a3a3a3]">
-                A live read on squad depth, scoring output, recent fixtures,
-                and the players setting the tempo.
-              </p>
-            </div>
-
-            <div className="grid min-w-[260px] grid-cols-[1fr_auto_1fr] items-center rounded-airbnb border border-[#222222] bg-[#222222] p-4 text-white shadow-airbnb-card dark:border-[#333333] dark:bg-[#f5f5f5] dark:text-[#111111]">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.16em] opacity-60">
-                  Latest
-                </p>
-                <p className="mt-2 text-sm font-semibold">
-                  {formatDate(featuredMatch?.match_date)}
-                </p>
-                <p className="mt-1 flex items-center gap-1 text-xs opacity-70">
-                  <MapPin className="h-3 w-3" />
-                  {featuredMatch?.san || 'No location'}
-                </p>
-              </div>
-              <div className="mx-4 h-16 w-px bg-white/20 dark:bg-black/20" />
-              <div className="text-right">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.16em] opacity-60">
-                  Score
-                </p>
-                <p className="mt-1 text-4xl font-black tracking-tight">
-                  {formatScore(featuredMatch)}
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-
+      <section>
         <aside className="rounded-airbnb border border-[#e7e7e7] bg-white p-5 shadow-airbnb-card dark:border-[#2e2e2e] dark:bg-[#1c1c1e]">
           <div className="flex items-center justify-between">
             <div>
