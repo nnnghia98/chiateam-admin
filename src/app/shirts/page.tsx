@@ -21,9 +21,12 @@ interface ShirtEntry {
   id: string;
   playerName: string;
   shirtNumber: string | null;
+  shirtSize: string;
+  shirtName: string;
 }
 
 interface ShirtSample {
+  id: string;
   imageName: string;
   imageDataUrl: string;
 }
@@ -38,6 +41,7 @@ interface XlsxPart {
 }
 
 interface SampleImageExport {
+  sample: ShirtSample;
   bytes: Uint8Array;
   extension: 'png' | 'jpg' | 'gif';
   mime: 'image/png' | 'image/jpeg' | 'image/gif';
@@ -45,14 +49,19 @@ interface SampleImageExport {
   heightPx: number;
 }
 
+function createId(prefix: string) {
+  return typeof crypto !== 'undefined' && 'randomUUID' in crypto
+    ? crypto.randomUUID()
+    : `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
 function createEntry(): ShirtEntry {
   return {
-    id:
-      typeof crypto !== 'undefined' && 'randomUUID' in crypto
-        ? crypto.randomUUID()
-        : `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+    id: createId('shirt-row'),
     playerName: '',
     shirtNumber: null,
+    shirtSize: '',
+    shirtName: '',
   };
 }
 
@@ -61,14 +70,9 @@ function createInitialEntries(): ShirtEntry[] {
     id: `shirt-row-${index}`,
     playerName: '',
     shirtNumber: null,
+    shirtSize: '',
+    shirtName: '',
   }));
-}
-
-function createEmptySample(): ShirtSample {
-  return {
-    imageName: '',
-    imageDataUrl: '',
-  };
 }
 
 function normalizeEntries(value: unknown): ShirtEntry[] {
@@ -88,21 +92,51 @@ function normalizeEntries(value: unknown): ShirtEntry[] {
         typeof record.shirtNumber === 'string'
           ? record.shirtNumber || null
           : null,
+      shirtSize: typeof record.shirtSize === 'string' ? record.shirtSize : '',
+      shirtName: typeof record.shirtName === 'string' ? record.shirtName : '',
     };
   });
 
   return entries.length > 0 ? entries : createInitialEntries();
 }
 
-function normalizeSample(value: unknown): ShirtSample {
+function normalizeSamples(value: unknown): ShirtSample[] {
+  if (Array.isArray(value)) {
+    return value
+      .map(item => {
+        const record =
+          item && typeof item === 'object'
+            ? (item as Record<string, unknown>)
+            : {};
+
+        return {
+          id: typeof record.id === 'string' ? record.id : createId('sample'),
+          imageName:
+            typeof record.imageName === 'string' ? record.imageName : '',
+          imageDataUrl:
+            typeof record.imageDataUrl === 'string'
+              ? record.imageDataUrl
+              : '',
+        };
+      })
+      .filter(sample => sample.imageDataUrl);
+  }
+
   const record =
     value && typeof value === 'object' ? (value as Record<string, unknown>) : {};
+  const imageName = typeof record.imageName === 'string' ? record.imageName : '';
+  const imageDataUrl =
+    typeof record.imageDataUrl === 'string' ? record.imageDataUrl : '';
 
-  return {
-    imageName: typeof record.imageName === 'string' ? record.imageName : '',
-    imageDataUrl:
-      typeof record.imageDataUrl === 'string' ? record.imageDataUrl : '',
-  };
+  return imageDataUrl
+    ? [
+        {
+          id: typeof record.id === 'string' ? record.id : createId('sample'),
+          imageName,
+          imageDataUrl,
+        },
+      ]
+    : [];
 }
 
 function escapeXml(value: string) {
@@ -300,12 +334,21 @@ async function prepareSampleImage(
   );
 
   return {
+    sample,
     bytes: image.bytes,
     extension: imageType.extension,
     mime: imageType.mime,
     widthPx: Math.max(1, Math.round(dimensions.width * scale)),
     heightPx: Math.max(1, Math.round(dimensions.height * scale)),
   };
+}
+
+async function prepareSampleImages(samples: ShirtSample[]) {
+  const images = await Promise.all(
+    samples.map(sample => prepareSampleImage(sample))
+  );
+
+  return images.filter((image): image is SampleImageExport => image !== null);
 }
 
 function xlsxCell(
@@ -335,79 +378,104 @@ function xlsxRow(index: number, cells: string[], height?: number) {
 
 function createWorksheetXml(
   entries: ShirtEntry[],
-  sample: ShirtSample,
-  image: SampleImageExport | null
+  samples: ShirtSample[],
+  images: SampleImageExport[]
 ) {
-  const tableStartRow = 7;
+  const sampleRows = Math.max(samples.length, 1);
+  const registrationsTitleRow = sampleRows + 4;
+  const headerRow = registrationsTitleRow + 1;
+  const tableStartRow = headerRow + 1;
   const lastRow = tableStartRow + entries.length - 1;
+  const sampleXmlRows =
+    samples.length > 0
+      ? samples.map((sample, index) =>
+          xlsxRow(
+            index + 2,
+            [
+              xlsxCell(`A${index + 2}`, `Sample ${index + 1}`, 4),
+              xlsxCell(`B${index + 2}`, sample.imageName),
+              xlsxCell(`C${index + 2}`, null),
+              xlsxCell(`D${index + 2}`, null),
+              xlsxCell(`E${index + 2}`, null),
+            ],
+            122
+          )
+        )
+      : [
+          xlsxRow(2, [
+            xlsxCell('A2', 'Samples', 4),
+            xlsxCell('B2', 'No sample images attached.'),
+            xlsxCell('C2', null),
+            xlsxCell('D2', null),
+            xlsxCell('E2', null),
+          ]),
+        ];
   const rows = [
-    xlsxRow(1, [xlsxCell('A1', 'Sample shirt', 3)]),
-    xlsxRow(2, [
-      xlsxCell('A2', 'Image file', 4),
-      xlsxCell('B2', sample.imageName || 'No sample attached'),
-      xlsxCell('C2', null),
+    xlsxRow(1, [xlsxCell('A1', 'Sample shirts', 3)]),
+    ...sampleXmlRows,
+    xlsxRow(registrationsTitleRow, [
+      xlsxCell(`A${registrationsTitleRow}`, 'Shirt registrations', 3),
     ]),
-    xlsxRow(
-      3,
-      [
-        xlsxCell('A3', 'Sample image', 4),
-        xlsxCell(
-          'B3',
-          image
-            ? 'Attached in this workbook.'
-            : 'No sample image attached.'
-        ),
-        xlsxCell('C3', null),
-      ],
-      122
-    ),
-    xlsxRow(5, [xlsxCell('A5', 'Shirt registrations', 3)]),
-    xlsxRow(6, [
-      xlsxCell('A6', '#', 2),
-      xlsxCell('B6', 'Player name', 2),
-      xlsxCell('C6', 'Number (optional)', 2),
+    xlsxRow(headerRow, [
+      xlsxCell(`A${headerRow}`, '#', 2),
+      xlsxCell(`B${headerRow}`, 'Player name *', 2),
+      xlsxCell(`C${headerRow}`, 'Size *', 2),
+      xlsxCell(`D${headerRow}`, 'Number', 2),
+      xlsxCell(`E${headerRow}`, 'Name on shirt', 2),
     ]),
     ...entries.map((entry, index) =>
       xlsxRow(tableStartRow + index, [
         xlsxCell(`A${tableStartRow + index}`, index + 1, 1, false),
         xlsxCell(`B${tableStartRow + index}`, entry.playerName),
-        xlsxCell(`C${tableStartRow + index}`, entry.shirtNumber ?? ''),
+        xlsxCell(`C${tableStartRow + index}`, entry.shirtSize),
+        xlsxCell(`D${tableStartRow + index}`, entry.shirtNumber ?? ''),
+        xlsxCell(`E${tableStartRow + index}`, entry.shirtName),
       ])
     ),
+  ].join('');
+  const mergeCells = [
+    '<mergeCell ref="A1:E1"/>',
+    ...Array.from(
+      { length: sampleRows },
+      (_, index) => `<mergeCell ref="B${index + 2}:E${index + 2}"/>`
+    ),
+    `<mergeCell ref="A${registrationsTitleRow}:E${registrationsTitleRow}"/>`,
   ].join('');
 
   return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
-  <dimension ref="A1:C${lastRow}"/>
+  <dimension ref="A1:E${lastRow}"/>
   <sheetViews>
     <sheetView workbookViewId="0">
-      <pane ySplit="6" topLeftCell="A7" activePane="bottomLeft" state="frozen"/>
+      <pane ySplit="${headerRow}" topLeftCell="A${tableStartRow}" activePane="bottomLeft" state="frozen"/>
       <selection pane="bottomLeft"/>
     </sheetView>
   </sheetViews>
   <sheetFormatPr defaultRowHeight="18"/>
   <cols>
     <col min="1" max="1" width="8" customWidth="1"/>
-    <col min="2" max="2" width="34" customWidth="1"/>
-    <col min="3" max="3" width="20" customWidth="1"/>
+    <col min="2" max="2" width="30" customWidth="1"/>
+    <col min="3" max="3" width="14" customWidth="1"/>
+    <col min="4" max="4" width="20" customWidth="1"/>
+    <col min="5" max="5" width="24" customWidth="1"/>
   </cols>
   <sheetData>${rows}</sheetData>
-  <mergeCells count="4">
-    <mergeCell ref="A1:C1"/>
-    <mergeCell ref="B2:C2"/>
-    <mergeCell ref="B3:C3"/>
-    <mergeCell ref="A5:C5"/>
-  </mergeCells>
-  ${image ? '<drawing r:id="rId1"/>' : ''}
+  <mergeCells count="${sampleRows + 2}">${mergeCells}</mergeCells>
+  ${images.length > 0 ? '<drawing r:id="rId1"/>' : ''}
   <pageMargins left="0.7" right="0.7" top="0.75" bottom="0.75" header="0.3" footer="0.3"/>
 </worksheet>`;
 }
 
-function createContentTypesXml(image: SampleImageExport | null) {
-  const imageDefault = image
-    ? `<Default Extension="${image.extension}" ContentType="${image.mime}"/>`
-    : '';
-  const drawingOverride = image
+function createContentTypesXml(images: SampleImageExport[]) {
+  const imageDefaults = Array.from(
+    new Map(images.map(image => [image.extension, image.mime]))
+  )
+    .map(
+      ([extension, mime]) =>
+        `<Default Extension="${extension}" ContentType="${mime}"/>`
+    )
+    .join('');
+  const drawingOverride = images.length
     ? '<Override PartName="/xl/drawings/drawing1.xml" ContentType="application/vnd.openxmlformats-officedocument.drawing+xml"/>'
     : '';
 
@@ -415,7 +483,7 @@ function createContentTypesXml(image: SampleImageExport | null) {
 <Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
   <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
   <Default Extension="xml" ContentType="application/xml"/>
-  ${imageDefault}
+  ${imageDefaults}
   <Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>
   <Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>
   <Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>
@@ -463,26 +531,26 @@ function createStylesXml() {
 </styleSheet>`;
 }
 
-function createDrawingXml(image: SampleImageExport) {
+function createDrawingXml(images: SampleImageExport[]) {
   const emuPerPixel = 9525;
-
-  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<xdr:wsDr xmlns:xdr="http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">
+  const anchors = images
+    .map(
+      (image, index) => `
   <xdr:oneCellAnchor>
     <xdr:from>
       <xdr:col>1</xdr:col>
       <xdr:colOff>0</xdr:colOff>
-      <xdr:row>2</xdr:row>
+      <xdr:row>${index + 1}</xdr:row>
       <xdr:rowOff>0</xdr:rowOff>
     </xdr:from>
     <xdr:ext cx="${image.widthPx * emuPerPixel}" cy="${image.heightPx * emuPerPixel}"/>
     <xdr:pic>
       <xdr:nvPicPr>
-        <xdr:cNvPr id="1" name="Sample shirt"/>
+        <xdr:cNvPr id="${index + 1}" name="Sample shirt ${index + 1}"/>
         <xdr:cNvPicPr/>
       </xdr:nvPicPr>
       <xdr:blipFill>
-        <a:blip xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" r:embed="rId1"/>
+        <a:blip xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" r:embed="rId${index + 1}"/>
         <a:stretch><a:fillRect/></a:stretch>
       </xdr:blipFill>
       <xdr:spPr>
@@ -490,21 +558,27 @@ function createDrawingXml(image: SampleImageExport) {
       </xdr:spPr>
     </xdr:pic>
     <xdr:clientData/>
-  </xdr:oneCellAnchor>
+  </xdr:oneCellAnchor>`
+    )
+    .join('');
+
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<xdr:wsDr xmlns:xdr="http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">
+${anchors}
 </xdr:wsDr>`;
 }
 
-async function createXlsxBlob(entries: ShirtEntry[], sample: ShirtSample) {
-  const image = await prepareSampleImage(sample);
+async function createXlsxBlob(entries: ShirtEntry[], samples: ShirtSample[]) {
+  const images = await prepareSampleImages(samples);
 
-  if (sample.imageDataUrl && !image) {
+  if (samples.length !== images.length) {
     throw new Error('UNSUPPORTED_SAMPLE_IMAGE');
   }
 
   const parts: XlsxPart[] = [
     {
       path: '[Content_Types].xml',
-      data: textBytes(createContentTypesXml(image)),
+      data: textBytes(createContentTypesXml(images)),
     },
     {
       path: '_rels/.rels',
@@ -536,11 +610,11 @@ async function createXlsxBlob(entries: ShirtEntry[], sample: ShirtSample) {
     },
     {
       path: 'xl/worksheets/sheet1.xml',
-      data: textBytes(createWorksheetXml(entries, sample, image)),
+      data: textBytes(createWorksheetXml(entries, samples, images)),
     },
   ];
 
-  if (image) {
+  if (images.length) {
     parts.push(
       {
         path: 'xl/worksheets/_rels/sheet1.xml.rels',
@@ -551,28 +625,46 @@ async function createXlsxBlob(entries: ShirtEntry[], sample: ShirtSample) {
       },
       {
         path: 'xl/drawings/drawing1.xml',
-        data: textBytes(createDrawingXml(image)),
+        data: textBytes(createDrawingXml(images)),
       },
       {
         path: 'xl/drawings/_rels/drawing1.xml.rels',
         data: textBytes(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
-  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="../media/image1.${image.extension}"/>
+  ${images
+    .map(
+      (image, index) =>
+        `<Relationship Id="rId${index + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="../media/image${index + 1}.${image.extension}"/>`
+    )
+    .join('')}
 </Relationships>`),
       },
-      {
-        path: `xl/media/image1.${image.extension}`,
+      ...images.map((image, index) => ({
+        path: `xl/media/image${index + 1}.${image.extension}`,
         data: image.bytes,
-      }
+      }))
     );
   }
 
   return new Blob([createStoredZip(parts)], { type: XLSX_MIME });
 }
 
-async function downloadExcel(entries: ShirtEntry[], sample: ShirtSample) {
+function rowHasAnyValue(entry: ShirtEntry) {
+  return Boolean(
+    entry.playerName.trim() ||
+      entry.shirtSize.trim() ||
+      entry.shirtNumber?.trim() ||
+      entry.shirtName.trim()
+  );
+}
+
+function rowHasRequiredValues(entry: ShirtEntry) {
+  return Boolean(entry.playerName.trim() && entry.shirtSize.trim());
+}
+
+async function downloadExcel(entries: ShirtEntry[], samples: ShirtSample[]) {
   const rows = entries.filter(
-    entry => entry.playerName.trim() || entry.shirtNumber?.trim()
+    entry => rowHasAnyValue(entry)
   );
 
   if (rows.length === 0) {
@@ -580,10 +672,15 @@ async function downloadExcel(entries: ShirtEntry[], sample: ShirtSample) {
     return;
   }
 
+  if (rows.some(entry => !rowHasRequiredValues(entry))) {
+    alert('Player name and size are required for every filled row.');
+    return;
+  }
+
   let blob: Blob;
 
   try {
-    blob = await createXlsxBlob(rows, sample);
+    blob = await createXlsxBlob(rows, samples);
   } catch (error) {
     if (error instanceof Error && error.message === 'UNSUPPORTED_SAMPLE_IMAGE') {
       alert('Excel export supports PNG, JPG, or GIF sample images.');
@@ -606,11 +703,19 @@ async function downloadExcel(entries: ShirtEntry[], sample: ShirtSample) {
   window.setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
+function RequiredAsterisk() {
+  return (
+    <span aria-hidden="true" className="text-[#ff385c]">
+      *
+    </span>
+  );
+}
+
 export default function ShirtsPage() {
   const { canEdit } = useAuth();
   const [entries, setEntries] =
     useState<ShirtEntry[]>(createInitialEntries);
-  const [sample, setSample] = useState<ShirtSample>(createEmptySample);
+  const [samples, setSamples] = useState<ShirtSample[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [saveState, setSaveState] = useState('Draft');
 
@@ -625,7 +730,7 @@ export default function ShirtsPage() {
         } else if (parsed && typeof parsed === 'object') {
           const draft = parsed as Record<string, unknown>;
           setEntries(normalizeEntries(draft.entries));
-          setSample(normalizeSample(draft.sample));
+          setSamples(normalizeSamples(draft.samples ?? draft.sample));
         }
       }
     } catch (error) {
@@ -639,26 +744,25 @@ export default function ShirtsPage() {
     if (!loaded) return;
 
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ entries, sample }));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ entries, samples }));
       setSaveState('Saved');
     } catch (error) {
       console.error('Failed to save shirt registration draft:', error);
       setSaveState('Image too large');
     }
-  }, [entries, sample, loaded]);
+  }, [entries, samples, loaded]);
 
   const filledRows = useMemo(
     () =>
       entries.filter(
-        entry =>
-          entry.playerName.trim() || entry.shirtNumber?.trim()
+        entry => rowHasRequiredValues(entry)
       ),
     [entries]
   );
 
   const updateEntry = (
     id: string,
-    field: 'playerName' | 'shirtNumber',
+    field: 'playerName' | 'shirtNumber' | 'shirtSize' | 'shirtName',
     value: string
   ) => {
     setEntries(current =>
@@ -678,29 +782,52 @@ export default function ShirtsPage() {
   };
 
   const attachSampleImage = (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
+    const files = Array.from(event.target.files ?? []);
     event.target.value = '';
 
-    if (!file) return;
+    if (files.length === 0) return;
 
-    if (!['image/png', 'image/jpeg', 'image/gif'].includes(file.type)) {
+    const invalidFile = files.find(
+      file => !['image/png', 'image/jpeg', 'image/gif'].includes(file.type)
+    );
+
+    if (invalidFile) {
       alert('Please attach a PNG, JPG, or GIF image.');
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = () => {
-      setSample({
-        imageName: file.name,
-        imageDataUrl: typeof reader.result === 'string' ? reader.result : '',
+    Promise.all(
+      files.map(
+        file =>
+          new Promise<ShirtSample>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => {
+              resolve({
+                id: createId('sample'),
+                imageName: file.name,
+                imageDataUrl:
+                  typeof reader.result === 'string' ? reader.result : '',
+              });
+            };
+            reader.onerror = () => reject(reader.error);
+            reader.readAsDataURL(file);
+          })
+      )
+    )
+      .then(newSamples => {
+        setSamples(current => [
+          ...current,
+          ...newSamples.filter(sample => sample.imageDataUrl),
+        ]);
+        setSaveState('Draft');
+      })
+      .catch(() => {
+        alert('Could not read one of the sample images.');
       });
-      setSaveState('Draft');
-    };
-    reader.readAsDataURL(file);
   };
 
-  const removeSampleImage = () => {
-    setSample(createEmptySample());
+  const removeSampleImage = (id: string) => {
+    setSamples(current => current.filter(sample => sample.id !== id));
     setSaveState('Draft');
   };
 
@@ -744,8 +871,8 @@ export default function ShirtsPage() {
                   Registration sheet
                 </h1>
                 <p className="mt-3 max-w-2xl text-sm leading-6 text-[#6a6a6a] dark:text-[#a3a3a3]">
-                  Player names, shirt numbers, and one shared sample shirt
-                  reference.
+                  Required player names and sizes, plus numbers, printed shirt
+                  names, and shared sample shirt references.
                 </p>
               </div>
               <div className="flex flex-col gap-2 sm:flex-row">
@@ -762,7 +889,7 @@ export default function ShirtsPage() {
                 )}
                 <Button
                   type="button"
-                  onClick={() => void downloadExcel(entries, sample)}
+                  onClick={() => void downloadExcel(entries, samples)}
                   className="rounded-airbnb bg-[#222222] text-white hover:bg-[#ff385c] dark:bg-[#ff385c] dark:hover:bg-[#e00b41]"
                 >
                   <Download className="mr-2 h-4 w-4" />
@@ -795,7 +922,7 @@ export default function ShirtsPage() {
                   Sample
                 </p>
                 <p className="mt-2 text-lg font-black text-[#222222] dark:text-[#f5f5f5]">
-                  {sample.imageDataUrl ? 'Ready' : 'Missing'}
+                  {samples.length ? samples.length : 'Missing'}
                 </p>
               </div>
             </div>
@@ -808,33 +935,56 @@ export default function ShirtsPage() {
       </section>
 
       <section className="rounded-airbnb border border-[#e7e7e7] bg-white shadow-airbnb-card dark:border-[#2e2e2e] dark:bg-[#1c1c1e]">
-        <div className="grid gap-0 overflow-hidden rounded-airbnb lg:grid-cols-[260px_1fr]">
-          <div className="flex min-h-[220px] items-center justify-center bg-[#fcfbf8] p-5 dark:bg-[#151515]">
-            <div className="relative flex h-44 w-44 items-center justify-center overflow-hidden rounded-airbnb border border-[#e7e7e7] bg-white dark:border-[#2e2e2e] dark:bg-[#111111]">
-              {sample.imageDataUrl ? (
-                <Image
-                  src={sample.imageDataUrl}
-                  alt="Sample shirt"
-                  width={176}
-                  height={176}
-                  unoptimized
-                  className="h-full w-full object-contain"
-                />
-              ) : (
-                <Shirt className="h-14 w-14 text-[#c1c1c1]" />
-              )}
-            </div>
+        <div className="grid gap-0 overflow-hidden rounded-airbnb lg:grid-cols-[minmax(360px,560px)_1fr]">
+          <div className="min-h-[440px] bg-[#fcfbf8] p-5 dark:bg-[#151515]">
+            {samples.length > 0 ? (
+              <div className="grid gap-3">
+                <div className="relative flex h-[360px] items-center justify-center overflow-hidden rounded-airbnb border border-[#e7e7e7] bg-white dark:border-[#2e2e2e] dark:bg-[#111111]">
+                  <Image
+                    src={samples[0].imageDataUrl}
+                    alt="Primary shirt sample"
+                    fill
+                    sizes="(min-width: 1024px) 520px, 100vw"
+                    unoptimized
+                    className="object-contain"
+                  />
+                </div>
+                {samples.length > 1 && (
+                  <div className="grid grid-cols-3 gap-2">
+                    {samples.slice(1).map((sample, index) => (
+                      <div
+                        key={sample.id}
+                        className="relative flex h-32 items-center justify-center overflow-hidden rounded-airbnb border border-[#e7e7e7] bg-white dark:border-[#2e2e2e] dark:bg-[#111111]"
+                      >
+                        <Image
+                          src={sample.imageDataUrl}
+                          alt={`Additional shirt sample ${index + 2}`}
+                          fill
+                          sizes="160px"
+                          unoptimized
+                          className="object-contain"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="flex h-[360px] items-center justify-center rounded-airbnb border border-dashed border-[#c1c1c1] bg-white dark:border-[#2e2e2e] dark:bg-[#111111]">
+                <Shirt className="h-16 w-16 text-[#c1c1c1]" />
+              </div>
+            )}
           </div>
           <div className="border-t border-[#f2f2f2] p-5 dark:border-[#2e2e2e] lg:border-l lg:border-t-0">
             <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#6a6a6a] dark:text-[#a3a3a3]">
-              Sample
+              Samples
             </p>
             <h2 className="mt-1 text-xl font-bold text-[#222222] dark:text-[#f5f5f5]">
-              Shirt reference
+              Shirt references
             </h2>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-[#6a6a6a] dark:text-[#a3a3a3]">
-              Attach the shirt sample once. It will be included at the top of
-              the exported Excel file.
+              Attach one or more shirt samples. They will be included at the top
+              of the exported Excel file.
             </p>
 
             <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -843,30 +993,45 @@ export default function ShirtsPage() {
                 className="inline-flex h-10 cursor-pointer items-center justify-center rounded-airbnb border border-[#c1c1c1] bg-white px-4 text-sm font-medium text-[#222222] transition-all hover:border-[#222222] hover:shadow-airbnb-hover dark:border-[#2e2e2e] dark:bg-[#111111] dark:text-[#f5f5f5]"
               >
                 <ImageUp className="mr-2 h-4 w-4" />
-                Attach sample
+                Attach samples
               </Label>
               <input
                 id="sample-shirt-image"
                 type="file"
                 accept="image/png,image/jpeg,image/gif"
+                multiple
                 className="hidden"
                 onChange={attachSampleImage}
               />
-              {sample.imageDataUrl && (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  onClick={removeSampleImage}
-                  className="rounded-airbnb px-4 text-[#6a6a6a] hover:text-[#ff385c] dark:text-[#a3a3a3] dark:hover:bg-[#2a2a2a]"
-                >
-                  Remove sample
-                </Button>
-              )}
             </div>
 
-            <p className="mt-3 truncate text-sm font-medium text-[#222222] dark:text-[#f5f5f5]">
-              {sample.imageName || 'No sample attached'}
-            </p>
+            <div className="mt-4 space-y-2">
+              {samples.length > 0 ? (
+                samples.map((sample, index) => (
+                  <div
+                    key={sample.id}
+                    className="flex items-center justify-between gap-3 rounded-airbnb border border-[#e7e7e7] bg-[#fcfbf8] px-3 py-2 dark:border-[#2e2e2e] dark:bg-[#151515]"
+                  >
+                    <p className="min-w-0 truncate text-sm font-medium text-[#222222] dark:text-[#f5f5f5]">
+                      {index + 1}. {sample.imageName}
+                    </p>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => removeSampleImage(sample.id)}
+                      className="h-8 flex-shrink-0 rounded-airbnb px-2 text-[#6a6a6a] hover:text-[#ff385c] dark:text-[#a3a3a3] dark:hover:bg-[#2a2a2a]"
+                    >
+                      Remove
+                    </Button>
+                  </div>
+                ))
+              ) : (
+                <p className="text-sm font-medium text-[#6a6a6a] dark:text-[#a3a3a3]">
+                  No samples attached
+                </p>
+              )}
+            </div>
           </div>
         </div>
       </section>
@@ -892,17 +1057,23 @@ export default function ShirtsPage() {
         </div>
 
         <div className="hidden overflow-x-auto lg:block">
-          <table className="w-full min-w-[680px] border-collapse">
+          <table className="w-full min-w-[980px] border-collapse">
             <thead>
               <tr className="border-b border-[#f2f2f2] bg-[#fcfbf8] text-left dark:border-[#2e2e2e] dark:bg-[#151515]">
                 <th className="w-16 px-5 py-3 text-xs font-semibold uppercase tracking-[0.16em] text-[#6a6a6a] dark:text-[#a3a3a3]">
                   #
                 </th>
                 <th className="px-3 py-3 text-xs font-semibold uppercase tracking-[0.16em] text-[#6a6a6a] dark:text-[#a3a3a3]">
-                  Player name
+                  Player name <RequiredAsterisk />
+                </th>
+                <th className="w-36 px-3 py-3 text-xs font-semibold uppercase tracking-[0.16em] text-[#6a6a6a] dark:text-[#a3a3a3]">
+                  Size <RequiredAsterisk />
                 </th>
                 <th className="w-40 px-3 py-3 text-xs font-semibold uppercase tracking-[0.16em] text-[#6a6a6a] dark:text-[#a3a3a3]">
-                  Number (optional)
+                  Number
+                </th>
+                <th className="w-56 px-3 py-3 text-xs font-semibold uppercase tracking-[0.16em] text-[#6a6a6a] dark:text-[#a3a3a3]">
+                  Name on shirt
                 </th>
                 {canEdit && <th className="w-20 px-5 py-3" />}
               </tr>
@@ -918,10 +1089,11 @@ export default function ShirtsPage() {
                   </td>
                   <td className="px-3 py-4 align-middle">
                     <Label htmlFor={`player-${entry.id}`} className="sr-only">
-                      Player name
+                      Player name required
                     </Label>
                     <Input
                       id={`player-${entry.id}`}
+                      required
                       value={entry.playerName}
                       onChange={event =>
                         updateEntry(entry.id, 'playerName', event.target.value)
@@ -931,8 +1103,23 @@ export default function ShirtsPage() {
                     />
                   </td>
                   <td className="px-3 py-4 align-middle">
+                    <Label htmlFor={`size-${entry.id}`} className="sr-only">
+                      Size required
+                    </Label>
+                    <Input
+                      id={`size-${entry.id}`}
+                      required
+                      value={entry.shirtSize}
+                      onChange={event =>
+                        updateEntry(entry.id, 'shirtSize', event.target.value)
+                      }
+                      placeholder="M"
+                      className="rounded-airbnb dark:border-[#2e2e2e] dark:bg-[#111111] dark:text-[#f5f5f5]"
+                    />
+                  </td>
+                  <td className="px-3 py-4 align-middle">
                     <Label htmlFor={`number-${entry.id}`} className="sr-only">
-                      Number optional
+                      Number
                     </Label>
                     <Input
                       id={`number-${entry.id}`}
@@ -945,7 +1132,24 @@ export default function ShirtsPage() {
                           event.target.value
                         )
                       }
-                      placeholder="Optional"
+                      placeholder="Number"
+                      className="rounded-airbnb dark:border-[#2e2e2e] dark:bg-[#111111] dark:text-[#f5f5f5]"
+                    />
+                  </td>
+                  <td className="px-3 py-4 align-middle">
+                    <Label
+                      htmlFor={`shirt-name-${entry.id}`}
+                      className="sr-only"
+                    >
+                      Name on shirt
+                    </Label>
+                    <Input
+                      id={`shirt-name-${entry.id}`}
+                      value={entry.shirtName}
+                      onChange={event =>
+                        updateEntry(entry.id, 'shirtName', event.target.value)
+                      }
+                      placeholder="Printed name"
                       className="rounded-airbnb dark:border-[#2e2e2e] dark:bg-[#111111] dark:text-[#f5f5f5]"
                     />
                   </td>
@@ -992,16 +1196,17 @@ export default function ShirtsPage() {
                   </Button>
                 )}
               </div>
-              <div className="grid gap-3">
+              <div className="grid gap-3 sm:grid-cols-2">
                 <div className="space-y-2">
                   <Label
                     htmlFor={`mobile-player-${entry.id}`}
                     className="dark:text-[#f5f5f5]"
                   >
-                    Player name
+                    Player name <RequiredAsterisk />
                   </Label>
                   <Input
                     id={`mobile-player-${entry.id}`}
+                    required
                     value={entry.playerName}
                     onChange={event =>
                       updateEntry(entry.id, 'playerName', event.target.value)
@@ -1012,10 +1217,28 @@ export default function ShirtsPage() {
                 </div>
                 <div className="space-y-2">
                   <Label
+                    htmlFor={`mobile-size-${entry.id}`}
+                    className="dark:text-[#f5f5f5]"
+                  >
+                    Size <RequiredAsterisk />
+                  </Label>
+                  <Input
+                    id={`mobile-size-${entry.id}`}
+                    required
+                    value={entry.shirtSize}
+                    onChange={event =>
+                      updateEntry(entry.id, 'shirtSize', event.target.value)
+                    }
+                    placeholder="M"
+                    className="rounded-airbnb dark:border-[#2e2e2e] dark:bg-[#111111] dark:text-[#f5f5f5]"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label
                     htmlFor={`mobile-number-${entry.id}`}
                     className="dark:text-[#f5f5f5]"
                   >
-                    Number (optional)
+                    Number
                   </Label>
                   <Input
                     id={`mobile-number-${entry.id}`}
@@ -1024,7 +1247,24 @@ export default function ShirtsPage() {
                     onChange={event =>
                       updateEntry(entry.id, 'shirtNumber', event.target.value)
                     }
-                    placeholder="Optional"
+                    placeholder="Number"
+                    className="rounded-airbnb dark:border-[#2e2e2e] dark:bg-[#111111] dark:text-[#f5f5f5]"
+                  />
+                </div>
+                <div className="space-y-2 sm:col-span-2">
+                  <Label
+                    htmlFor={`mobile-shirt-name-${entry.id}`}
+                    className="dark:text-[#f5f5f5]"
+                  >
+                    Name on shirt
+                  </Label>
+                  <Input
+                    id={`mobile-shirt-name-${entry.id}`}
+                    value={entry.shirtName}
+                    onChange={event =>
+                      updateEntry(entry.id, 'shirtName', event.target.value)
+                    }
+                    placeholder="Printed name"
                     className="rounded-airbnb dark:border-[#2e2e2e] dark:bg-[#111111] dark:text-[#f5f5f5]"
                   />
                 </div>
