@@ -782,6 +782,8 @@ export default function ShirtsPage() {
   };
 
   const attachSampleImage = (event: ChangeEvent<HTMLInputElement>) => {
+    if (!canEdit) return;
+
     const files = Array.from(event.target.files ?? []);
     event.target.value = '';
 
@@ -827,6 +829,8 @@ export default function ShirtsPage() {
   };
 
   const removeSampleImage = (id: string) => {
+    if (!canEdit) return;
+
     setSamples(current => current.filter(sample => sample.id !== id));
     setSaveState('Draft');
   };
@@ -983,27 +987,29 @@ export default function ShirtsPage() {
               Shirt references
             </h2>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-[#6a6a6a] dark:text-[#a3a3a3]">
-              Attach one or more shirt samples. They will be included at the top
-              of the exported Excel file.
+              Shirt samples will be included at the top of the exported Excel
+              file.
             </p>
 
-            <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center">
-              <Label
-                htmlFor="sample-shirt-image"
-                className="inline-flex h-10 cursor-pointer items-center justify-center rounded-airbnb border border-[#c1c1c1] bg-white px-4 text-sm font-medium text-[#222222] transition-all hover:border-[#222222] hover:shadow-airbnb-hover dark:border-[#2e2e2e] dark:bg-[#111111] dark:text-[#f5f5f5]"
-              >
-                <ImageUp className="mr-2 h-4 w-4" />
-                Attach samples
-              </Label>
-              <input
-                id="sample-shirt-image"
-                type="file"
-                accept="image/png,image/jpeg,image/gif"
-                multiple
-                className="hidden"
-                onChange={attachSampleImage}
-              />
-            </div>
+            {canEdit && (
+              <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center">
+                <Label
+                  htmlFor="sample-shirt-image"
+                  className="inline-flex h-10 cursor-pointer items-center justify-center rounded-airbnb border border-[#c1c1c1] bg-white px-4 text-sm font-medium text-[#222222] transition-all hover:border-[#222222] hover:shadow-airbnb-hover dark:border-[#2e2e2e] dark:bg-[#111111] dark:text-[#f5f5f5]"
+                >
+                  <ImageUp className="mr-2 h-4 w-4" />
+                  Attach samples
+                </Label>
+                <input
+                  id="sample-shirt-image"
+                  type="file"
+                  accept="image/png,image/jpeg,image/gif"
+                  multiple
+                  className="hidden"
+                  onChange={attachSampleImage}
+                />
+              </div>
+            )}
 
             <div className="mt-4 space-y-2">
               {samples.length > 0 ? (
@@ -1015,15 +1021,17 @@ export default function ShirtsPage() {
                     <p className="min-w-0 truncate text-sm font-medium text-[#222222] dark:text-[#f5f5f5]">
                       {index + 1}. {sample.imageName}
                     </p>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => removeSampleImage(sample.id)}
-                      className="h-8 flex-shrink-0 rounded-airbnb px-2 text-[#6a6a6a] hover:text-[#ff385c] dark:text-[#a3a3a3] dark:hover:bg-[#2a2a2a]"
-                    >
-                      Remove
-                    </Button>
+                    {canEdit && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => removeSampleImage(sample.id)}
+                        className="h-8 flex-shrink-0 rounded-airbnb px-2 text-[#6a6a6a] hover:text-[#ff385c] dark:text-[#a3a3a3] dark:hover:bg-[#2a2a2a]"
+                      >
+                        Remove
+                      </Button>
+                    )}
                   </div>
                 ))
               ) : (
