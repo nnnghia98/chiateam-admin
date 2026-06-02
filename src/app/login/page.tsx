@@ -140,7 +140,7 @@ export default function LoginPage() {
               </span>
               <span className="flex items-center gap-1">
                 <Eye className="w-3 h-3" />
-                Viewer — read-only
+                Viewer — rename only
               </span>
             </div>
           </div>

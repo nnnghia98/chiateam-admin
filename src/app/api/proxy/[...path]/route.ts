@@ -4,8 +4,32 @@ import { getInternalApiAuthToken, getSessionFromRequest } from '@/lib/auth';
 export const runtime = 'nodejs';
 
 const API_URL = process.env.API_INTERNAL_URL;
+const PLAYER_LIST_FIELDS = [
+  'bench',
+  'teamA',
+  'teamB',
+  'team3A',
+  'team3B',
+  'team3C',
+] as const;
+const BOT_STORAGE_STATIC_FIELDS = [
+  'tiensan',
+  'tiennuoc',
+  'teamThua',
+  'activeVote',
+] as const;
+const BOT_STORAGE_FIELDS = new Set<string>([
+  ...PLAYER_LIST_FIELDS,
+  ...BOT_STORAGE_STATIC_FIELDS,
+]);
+
 type ProxyRouteContext = {
   params: Promise<{ path: string[] }>;
+};
+type NormalizedPlayerEntry = {
+  key: string;
+  name: string;
+  metadata: string;
 };
 
 function buildApiUrl(request: NextRequest, path: string[]) {
@@ -41,6 +65,167 @@ function forbidden() {
   return NextResponse.json({ error: 'FORBIDDEN' }, { status: 403 });
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value && typeof value === 'object' && !Array.isArray(value));
+}
+
+function stableStringify(value: unknown): string {
+  if (value === undefined) return 'undefined';
+  if (!isRecord(value) && !Array.isArray(value)) return JSON.stringify(value);
+  if (Array.isArray(value)) {
+    return `[${value.map(item => stableStringify(item)).join(',')}]`;
+  }
+
+  return `{${Object.entries(value)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([key, item]) => `${JSON.stringify(key)}:${stableStringify(item)}`)
+    .join(',')}}`;
+}
+
+function isBotStorageSavePath(path: string[]) {
+  const normalized = path.map(segment => segment.toLowerCase());
+  const last = normalized[normalized.length - 1];
+  const previous = normalized[normalized.length - 2];
+  return last === 'bot-storage' && (normalized.length === 1 || previous === 'api');
+}
+
+function normalizePlayerEntry(entry: unknown): NormalizedPlayerEntry | null {
+  if (!Array.isArray(entry) || entry.length < 2) return null;
+
+  const [rawKey, rawValue] = entry;
+  let name: string;
+  let metadata: Record<string, unknown> = {};
+
+  if (isRecord(rawValue)) {
+    const { name: rawName, ...rest } = rawValue;
+    if (rawName == null) {
+      name = String(rawKey);
+    } else if (typeof rawName === 'string' || typeof rawName === 'number') {
+      name = String(rawName);
+    } else {
+      return null;
+    }
+    metadata = rest;
+  } else if (rawValue == null) {
+    name = String(rawKey);
+  } else if (typeof rawValue === 'string' || typeof rawValue === 'number') {
+    name = String(rawValue);
+  } else {
+    return null;
+  }
+
+  return {
+    key: String(rawKey),
+    name,
+    metadata: stableStringify(metadata),
+  };
+}
+
+function normalizePlayerList(
+  storage: Record<string, unknown>,
+  field: (typeof PLAYER_LIST_FIELDS)[number]
+): NormalizedPlayerEntry[] | null {
+  const entries = storage[field] ?? [];
+  if (!Array.isArray(entries)) return null;
+
+  const normalized: NormalizedPlayerEntry[] = [];
+  for (const entry of entries) {
+    const player = normalizePlayerEntry(entry);
+    if (!player) return null;
+    normalized.push(player);
+  }
+
+  return normalized;
+}
+
+function botStorageOnlyRenamesPlayers(
+  current: Record<string, unknown>,
+  requested: Record<string, unknown>
+) {
+  if (Object.keys(requested).some(key => !BOT_STORAGE_FIELDS.has(key))) {
+    return false;
+  }
+
+  const currentStatic = Object.fromEntries(
+    BOT_STORAGE_STATIC_FIELDS.map(field => [
+      field,
+      field === 'teamThua'
+        ? (current[field] ?? null)
+        : field === 'activeVote'
+          ? (current[field] ?? null)
+          : (current[field] ?? 0),
+    ])
+  );
+  const requestedStatic = Object.fromEntries(
+    BOT_STORAGE_STATIC_FIELDS.map(field => [
+      field,
+      field === 'teamThua'
+        ? (requested[field] ?? null)
+        : field === 'activeVote'
+          ? (requested[field] ?? null)
+          : (requested[field] ?? 0),
+    ])
+  );
+
+  if (stableStringify(currentStatic) !== stableStringify(requestedStatic)) {
+    return false;
+  }
+
+  return PLAYER_LIST_FIELDS.every(field => {
+    const currentPlayers = normalizePlayerList(current, field);
+    const requestedPlayers = normalizePlayerList(requested, field);
+    if (!currentPlayers || !requestedPlayers) return false;
+    if (currentPlayers.length !== requestedPlayers.length) return false;
+
+    return currentPlayers.every((player, index) => {
+      const requestedPlayer = requestedPlayers[index];
+      return (
+        requestedPlayer &&
+        requestedPlayer.name.trim().length > 0 &&
+        player.key === requestedPlayer.key &&
+        player.metadata === requestedPlayer.metadata
+      );
+    });
+  });
+}
+
+async function canViewerSaveBotStorageRename(
+  request: NextRequest,
+  path: string[],
+  rawBody?: string
+) {
+  if (!rawBody || !isBotStorageSavePath(path)) return false;
+
+  let requested: unknown;
+  try {
+    requested = JSON.parse(rawBody);
+  } catch {
+    return false;
+  }
+
+  if (!isRecord(requested)) return false;
+
+  try {
+    const response = await fetch(buildApiUrl(request, path), {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Internal-Api-Auth': getInternalApiAuthToken(),
+        'X-Admin-Role': 'viewer',
+      },
+      cache: 'no-store',
+    });
+
+    if (!response.ok) return false;
+
+    const current: unknown = await response.json();
+    return isRecord(current) && botStorageOnlyRenamesPlayers(current, requested);
+  } catch (error) {
+    console.error('Bot storage viewer rename validation failed:', error);
+    return false;
+  }
+}
+
 async function proxyJsonRequest(
   request: NextRequest,
   path: string[],
@@ -52,8 +237,20 @@ async function proxyJsonRequest(
     return unauthorized();
   }
 
+  let rawBody: string | undefined;
+  if (method === 'POST' || method === 'PUT') {
+    rawBody = await request.text();
+  }
+
   if (method !== 'GET' && session.role !== 'admin') {
-    return forbidden();
+    const allowViewerRename =
+      session.role === 'viewer' &&
+      method === 'POST' &&
+      (await canViewerSaveBotStorageRename(request, path, rawBody));
+
+    if (!allowViewerRename) {
+      return forbidden();
+    }
   }
 
   const init: RequestInit = {
@@ -66,11 +263,8 @@ async function proxyJsonRequest(
     cache: 'no-store',
   };
 
-  if (method === 'POST' || method === 'PUT') {
-    const rawBody = await request.text();
-    if (rawBody) {
-      init.body = rawBody;
-    }
+  if ((method === 'POST' || method === 'PUT') && rawBody) {
+    init.body = rawBody;
   }
 
   try {

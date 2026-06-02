@@ -132,13 +132,17 @@ const TEAM_ACCENT: Record<TeamKey, string> = {
 function PlayerChip({
   player,
   teamKey,
-  canEdit,
+  canMove,
+  canRename,
+  canRemove,
   onRemove,
   onRename,
 }: {
   player: BotPlayer;
   teamKey: TeamKey;
-  canEdit: boolean;
+  canMove: boolean;
+  canRename: boolean;
+  canRemove: boolean;
   onRemove: () => void;
   onRename: (_name: string) => void;
 }) {
@@ -148,7 +152,7 @@ function PlayerChip({
   const { ref, isDragging } = useDraggable({
     id: `${teamKey}:${player.key}`,
     data: { player, fromTeam: teamKey },
-    disabled: !canEdit || editing,
+    disabled: !canMove || editing,
   });
 
   const commit = () => {
@@ -168,7 +172,7 @@ function PlayerChip({
         transition: 'opacity 0.15s, box-shadow 0.15s',
       }}
       className={`inline-flex items-center gap-1.5 pl-3 pr-2 py-2 min-h-[40px] rounded-airbnb border border-[#e7e7e7] bg-white select-none text-sm font-semibold text-[#222222] shadow-[rgba(0,0,0,0.04)_0px_2px_4px] dark:border-[#343434] dark:bg-[#242424] dark:text-[#f5f5f5] ${
-        canEdit && !editing ? 'cursor-grab active:cursor-grabbing' : ''
+        canMove && !editing ? 'cursor-grab active:cursor-grabbing' : ''
       }`}
     >
       {editing ? (
@@ -194,23 +198,27 @@ function PlayerChip({
       ) : (
         <>
           <span className="max-w-[110px] truncate">{player.name}</span>
-          {canEdit && (
+          {(canRename || canRemove) && (
             <span className="inline-flex items-center gap-0.5 ml-0.5">
-              <button
-                onClick={() => {
-                  setDraft(player.name);
-                  setEditing(true);
-                }}
-                className="w-6 h-6 rounded-airbnb flex items-center justify-center text-[#c1c1c1] hover:text-[#6a6a6a] dark:hover:text-[#a3a3a3] hover:bg-[#f2f2f2] dark:hover:bg-[#3a3a3a] transition-colors"
-              >
-                <Pencil className="w-2.5 h-2.5" />
-              </button>
-              <button
-                onClick={onRemove}
-                className="w-6 h-6 rounded-airbnb flex items-center justify-center text-[#c1c1c1] hover:text-[#ff385c] hover:bg-[#fff0f2] dark:hover:bg-[#3a1020] transition-colors"
-              >
-                <X className="w-2.5 h-2.5" />
-              </button>
+              {canRename && (
+                <button
+                  onClick={() => {
+                    setDraft(player.name);
+                    setEditing(true);
+                  }}
+                  className="w-6 h-6 rounded-airbnb flex items-center justify-center text-[#c1c1c1] hover:text-[#6a6a6a] dark:hover:text-[#a3a3a3] hover:bg-[#f2f2f2] dark:hover:bg-[#3a3a3a] transition-colors"
+                >
+                  <Pencil className="w-2.5 h-2.5" />
+                </button>
+              )}
+              {canRemove && (
+                <button
+                  onClick={onRemove}
+                  className="w-6 h-6 rounded-airbnb flex items-center justify-center text-[#c1c1c1] hover:text-[#ff385c] hover:bg-[#fff0f2] dark:hover:bg-[#3a1020] transition-colors"
+                >
+                  <X className="w-2.5 h-2.5" />
+                </button>
+              )}
             </span>
           )}
         </>
@@ -225,6 +233,7 @@ function TeamColumn({
   teamKey,
   players,
   canEdit,
+  canRename,
   onRemove,
   onRename,
   onClear,
@@ -232,6 +241,7 @@ function TeamColumn({
   teamKey: TeamKey;
   players: BotPlayer[];
   canEdit: boolean;
+  canRename: boolean;
   onRemove: (_key: string) => void;
   onRename: (_key: string, _name: string) => void;
   onClear: () => void;
@@ -288,7 +298,9 @@ function TeamColumn({
             key={player.key}
             player={player}
             teamKey={teamKey}
-            canEdit={canEdit}
+            canMove={canEdit}
+            canRename={canRename}
+            canRemove={canEdit}
             onRemove={() => onRemove(player.key)}
             onRename={name => onRename(player.key, name)}
           />
@@ -306,7 +318,8 @@ function TeamColumn({
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function NextMatchPage() {
-  const { canEdit } = useAuth();
+  const { canEdit, role } = useAuth();
+  const canRenamePlayers = role === 'admin' || role === 'viewer';
   const [storage, setStorage] = useState<BotStorage | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -519,7 +532,7 @@ export default function NextMatchPage() {
         {dirty && (
           <div className="sticky top-14 lg:top-0 z-30 text-xs font-medium text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-800 rounded-airbnb px-3 py-2.5 flex items-center justify-between gap-3">
             <span>⚠️ You have unsaved changes</span>
-            {canEdit && (
+            {canRenamePlayers && (
               <button
                 onClick={() => void save()}
                 disabled={saving}
@@ -636,7 +649,7 @@ export default function NextMatchPage() {
                 <RefreshCw className="w-4 h-4 mr-1" />
                 Refresh
               </Button>
-              {canEdit && (
+              {canRenamePlayers && (
                 <Button
                   size="sm"
                   onClick={() => void save()}
@@ -659,6 +672,7 @@ export default function NextMatchPage() {
                     teamKey={teamKey}
                     players={storage[teamKey]}
                     canEdit={canEdit}
+                    canRename={canRenamePlayers}
                     onRemove={key => removePlayer(teamKey, key)}
                     onRename={(key, name) => renamePlayer(teamKey, key, name)}
                     onClear={() => clearTeam(teamKey)}
@@ -671,6 +685,7 @@ export default function NextMatchPage() {
                   teamKey="bench"
                   players={storage.bench}
                   canEdit={canEdit}
+                  canRename={canRenamePlayers}
                   onRemove={key => removePlayer('bench', key)}
                   onRename={(key, name) => renamePlayer('bench', key, name)}
                   onClear={() => clearTeam('bench')}
@@ -682,6 +697,7 @@ export default function NextMatchPage() {
                       teamKey={teamKey}
                       players={storage[teamKey]}
                       canEdit={canEdit}
+                      canRename={canRenamePlayers}
                       onRemove={key => removePlayer(teamKey, key)}
                       onRename={(key, name) => renamePlayer(teamKey, key, name)}
                       onClear={() => clearTeam(teamKey)}
