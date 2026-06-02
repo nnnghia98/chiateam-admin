@@ -182,28 +182,69 @@ function botStorageOnlyRenamesPlayers(
       return (
         requestedPlayer &&
         requestedPlayer.name.trim().length > 0 &&
-        player.key === requestedPlayer.key &&
-        player.metadata === requestedPlayer.metadata
+        player.key === requestedPlayer.key
       );
     });
   });
 }
 
-async function canViewerSaveBotStorageRename(
+function withPlayerEntryName(entry: unknown, name: string) {
+  if (!Array.isArray(entry) || entry.length < 2) return null;
+
+  const [rawKey, rawValue] = entry;
+  if (isRecord(rawValue)) {
+    return [rawKey, { ...rawValue, name }];
+  }
+
+  return [rawKey, name];
+}
+
+function mergeBotStoragePlayerNames(
+  current: Record<string, unknown>,
+  requested: Record<string, unknown>
+) {
+  const merged = Object.fromEntries(
+    BOT_STORAGE_STATIC_FIELDS.map(field => [
+      field,
+      field === 'teamThua'
+        ? (current[field] ?? null)
+        : field === 'activeVote'
+          ? (current[field] ?? null)
+          : (current[field] ?? 0),
+    ])
+  );
+
+  for (const field of PLAYER_LIST_FIELDS) {
+    const currentEntries = current[field] ?? [];
+    const requestedPlayers = normalizePlayerList(requested, field);
+    if (!Array.isArray(currentEntries) || !requestedPlayers) return null;
+
+    const mergedEntries = currentEntries.map((entry, index) =>
+      withPlayerEntryName(entry, requestedPlayers[index].name)
+    );
+    if (mergedEntries.some(entry => entry === null)) return null;
+
+    merged[field] = mergedEntries;
+  }
+
+  return merged;
+}
+
+async function getViewerBotStorageRenameBody(
   request: NextRequest,
   path: string[],
   rawBody?: string
 ) {
-  if (!rawBody || !isBotStorageSavePath(path)) return false;
+  if (!rawBody || !isBotStorageSavePath(path)) return null;
 
   let requested: unknown;
   try {
     requested = JSON.parse(rawBody);
   } catch {
-    return false;
+    return null;
   }
 
-  if (!isRecord(requested)) return false;
+  if (!isRecord(requested)) return null;
 
   try {
     const response = await fetch(buildApiUrl(request, path), {
@@ -216,13 +257,18 @@ async function canViewerSaveBotStorageRename(
       cache: 'no-store',
     });
 
-    if (!response.ok) return false;
+    if (!response.ok) return null;
 
     const current: unknown = await response.json();
-    return isRecord(current) && botStorageOnlyRenamesPlayers(current, requested);
+    if (!isRecord(current) || !botStorageOnlyRenamesPlayers(current, requested)) {
+      return null;
+    }
+
+    const merged = mergeBotStoragePlayerNames(current, requested);
+    return merged ? JSON.stringify(merged) : null;
   } catch (error) {
     console.error('Bot storage viewer rename validation failed:', error);
-    return false;
+    return null;
   }
 }
 
@@ -242,12 +288,13 @@ async function proxyJsonRequest(
     rawBody = await request.text();
   }
 
-  if (method !== 'GET' && session.role !== 'admin') {
-    const allowViewerRename =
-      session.role === 'viewer' &&
-      method === 'POST' &&
-      (await canViewerSaveBotStorageRename(request, path, rawBody));
+  const viewerRenameBody =
+    session.role === 'viewer' && method === 'POST'
+      ? await getViewerBotStorageRenameBody(request, path, rawBody)
+      : null;
+  const allowViewerRename = viewerRenameBody !== null;
 
+  if (method !== 'GET' && session.role !== 'admin') {
     if (!allowViewerRename) {
       return forbidden();
     }
@@ -258,12 +305,14 @@ async function proxyJsonRequest(
     headers: {
       'Content-Type': 'application/json',
       'X-Internal-Api-Auth': getInternalApiAuthToken(),
-      'X-Admin-Role': session.role,
+      'X-Admin-Role': allowViewerRename ? 'admin' : session.role,
     },
     cache: 'no-store',
   };
 
-  if ((method === 'POST' || method === 'PUT') && rawBody) {
+  if (allowViewerRename) {
+    init.body = viewerRenameBody;
+  } else if ((method === 'POST' || method === 'PUT') && rawBody) {
     init.body = rawBody;
   }
 

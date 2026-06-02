@@ -544,44 +544,6 @@ export default function NextMatchPage() {
           </div>
         )}
 
-        <section className="overflow-hidden rounded-airbnb border border-[#e7e7e7] bg-white shadow-airbnb-card dark:border-[#2e2e2e] dark:bg-[#1c1c1e]">
-          <div className="grid bg-[#fbfbfb] dark:bg-[#151515] sm:grid-cols-3">
-            <div className="border-b border-[#e7e7e7] p-5 last:border-b-0 dark:border-[#2e2e2e] sm:border-b-0 sm:border-r sm:last:border-r-0">
-              <p className="text-[11px] font-black uppercase tracking-[0.16em] text-[#6a6a6a] dark:text-[#a3a3a3]">
-                Bench
-              </p>
-              <p className="mt-1 text-3xl font-black text-[#222222] dark:text-[#f5f5f5]">
-                {storage.bench.length}
-              </p>
-              <p className="text-xs text-[#6a6a6a] dark:text-[#a3a3a3]">
-                waiting members
-              </p>
-            </div>
-            <div className="border-b border-[#e7e7e7] p-5 last:border-b-0 dark:border-[#2e2e2e] sm:border-b-0 sm:border-r sm:last:border-r-0">
-              <p className="text-[11px] font-black uppercase tracking-[0.16em] text-[#6a6a6a] dark:text-[#a3a3a3]">
-                On pitch
-              </p>
-              <p className="mt-1 text-3xl font-black text-[#222222] dark:text-[#f5f5f5]">
-                {activePlayerCount}
-              </p>
-              <p className="text-xs text-[#6a6a6a] dark:text-[#a3a3a3]">
-                across {teamMode} teams
-              </p>
-            </div>
-            <div className="p-5">
-              <p className="text-[11px] font-black uppercase tracking-[0.16em] text-[#2d6a4f] dark:text-emerald-400">
-                Total cost
-              </p>
-              <p className="mt-1 text-3xl font-black text-[#222222] dark:text-[#f5f5f5]">
-                {totalCost.toLocaleString()}₫
-              </p>
-              <p className="text-xs text-[#6a6a6a] dark:text-[#a3a3a3]">
-                {costPerPlayer.toLocaleString()}₫ per player
-              </p>
-            </div>
-          </div>
-        </section>
-
         <section className="rounded-airbnb border border-[#e7e7e7] bg-white shadow-airbnb-card dark:border-[#2e2e2e] dark:bg-[#151515]">
           <div className="flex flex-col gap-4 border-b border-[#f2f2f2] px-5 py-4 dark:border-[#2e2e2e] lg:flex-row lg:items-center lg:justify-between">
             <div className="flex flex-wrap items-center gap-3">
@@ -706,6 +668,44 @@ export default function NextMatchPage() {
                 </div>
               </>
             )}
+          </div>
+        </section>
+
+        <section className="overflow-hidden rounded-airbnb border border-[#e7e7e7] bg-white shadow-airbnb-card dark:border-[#2e2e2e] dark:bg-[#1c1c1e]">
+          <div className="grid bg-[#fbfbfb] dark:bg-[#151515] sm:grid-cols-3">
+            <div className="border-b border-[#e7e7e7] p-5 last:border-b-0 dark:border-[#2e2e2e] sm:border-b-0 sm:border-r sm:last:border-r-0">
+              <p className="text-[11px] font-black uppercase tracking-[0.16em] text-[#6a6a6a] dark:text-[#a3a3a3]">
+                Bench
+              </p>
+              <p className="mt-1 text-3xl font-black text-[#222222] dark:text-[#f5f5f5]">
+                {storage.bench.length}
+              </p>
+              <p className="text-xs text-[#6a6a6a] dark:text-[#a3a3a3]">
+                waiting members
+              </p>
+            </div>
+            <div className="border-b border-[#e7e7e7] p-5 last:border-b-0 dark:border-[#2e2e2e] sm:border-b-0 sm:border-r sm:last:border-r-0">
+              <p className="text-[11px] font-black uppercase tracking-[0.16em] text-[#6a6a6a] dark:text-[#a3a3a3]">
+                On pitch
+              </p>
+              <p className="mt-1 text-3xl font-black text-[#222222] dark:text-[#f5f5f5]">
+                {activePlayerCount}
+              </p>
+              <p className="text-xs text-[#6a6a6a] dark:text-[#a3a3a3]">
+                across {teamMode} teams
+              </p>
+            </div>
+            <div className="p-5">
+              <p className="text-[11px] font-black uppercase tracking-[0.16em] text-[#2d6a4f] dark:text-emerald-400">
+                Total cost
+              </p>
+              <p className="mt-1 text-3xl font-black text-[#222222] dark:text-[#f5f5f5]">
+                {totalCost.toLocaleString()}₫
+              </p>
+              <p className="text-xs text-[#6a6a6a] dark:text-[#a3a3a3]">
+                {costPerPlayer.toLocaleString()}₫ per player
+              </p>
+            </div>
           </div>
         </section>
 
