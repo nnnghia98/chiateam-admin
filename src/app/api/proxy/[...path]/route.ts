@@ -89,6 +89,65 @@ function isBotStorageSavePath(path: string[]) {
   return last === 'bot-storage' && (normalized.length === 1 || previous === 'api');
 }
 
+function isPlayerUpdatePath(path: string[]) {
+  const normalized = path.map(segment => segment.toLowerCase());
+  const playersIndex = normalized.lastIndexOf('players');
+  return playersIndex >= 0 && playersIndex === normalized.length - 2;
+}
+
+function isWorldCupMemberPredictionPath(path: string[]) {
+  const normalized = path.map(segment => segment.toLowerCase());
+  const worldCupIndex = normalized.lastIndexOf('world-cup-predictions');
+  return (
+    worldCupIndex >= 0 &&
+    normalized[worldCupIndex + 1] === 'member' &&
+    Boolean(normalized[worldCupIndex + 2])
+  );
+}
+
+function isWorldCupPublicReadPath(path: string[]) {
+  const normalized = path.map(segment => segment.toLowerCase());
+  const worldCupIndex = normalized.lastIndexOf('world-cup-predictions');
+  if (worldCupIndex < 0) return false;
+
+  const afterBase = normalized.slice(worldCupIndex + 1);
+  if (afterBase.length === 0) return true;
+  return afterBase.length === 1 && ['matches', 'leaderboard'].includes(afterBase[0]);
+}
+
+async function hasValidWorldCupMemberKey(request: NextRequest, path: string[]) {
+  const key = request.headers.get('x-world-cup-member-key')?.trim();
+  if (!key) return false;
+
+  const normalized = path.map(segment => segment.toLowerCase());
+  const worldCupIndex = normalized.lastIndexOf('world-cup-predictions');
+  const prefix = path.slice(0, worldCupIndex + 1);
+  const validationUrl = buildApiUrl(request, [
+    ...prefix,
+    'member',
+    encodeURIComponent(key),
+  ]);
+
+  try {
+    const response = await fetch(validationUrl, {
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json' },
+      cache: 'no-store',
+    });
+    return response.ok;
+  } catch (error) {
+    console.error('World Cup member key validation failed:', error);
+    return false;
+  }
+}
+
+function normalizeAvatarValue(value: unknown) {
+  if (value == null) return null;
+  if (typeof value !== 'string') return undefined;
+  const trimmed = value.trim();
+  return trimmed || null;
+}
+
 function normalizePlayerEntry(entry: unknown): NormalizedPlayerEntry | null {
   if (!Array.isArray(entry) || entry.length < 2) return null;
 
@@ -272,14 +331,40 @@ async function getViewerBotStorageRenameBody(
   }
 }
 
+function getViewerPlayerAvatarBody(path: string[], rawBody?: string) {
+  if (!rawBody || !isPlayerUpdatePath(path)) return null;
+
+  let requested: unknown;
+  try {
+    requested = JSON.parse(rawBody);
+  } catch {
+    return null;
+  }
+
+  if (!isRecord(requested)) return null;
+
+  const keys = Object.keys(requested);
+  if (keys.length !== 1 || keys[0] !== 'avatar') return null;
+
+  const avatar = normalizeAvatarValue(requested.avatar);
+  return avatar === undefined ? null : JSON.stringify({ avatar });
+}
+
 async function proxyJsonRequest(
   request: NextRequest,
   path: string[],
   method: 'GET' | 'POST' | 'PUT' | 'DELETE'
 ) {
   const session = getSessionFromRequest(request);
+  const allowPublicMemberPrediction =
+    isWorldCupMemberPredictionPath(path) && (method === 'GET' || method === 'PUT');
+  const allowPublicWorldCupRead =
+    !session &&
+    method === 'GET' &&
+    isWorldCupPublicReadPath(path) &&
+    (await hasValidWorldCupMemberKey(request, path));
 
-  if (!session) {
+  if (!session && !allowPublicMemberPrediction && !allowPublicWorldCupRead) {
     return unauthorized();
   }
 
@@ -289,13 +374,18 @@ async function proxyJsonRequest(
   }
 
   const viewerRenameBody =
-    session.role === 'viewer' && method === 'POST'
+    session?.role === 'viewer' && method === 'POST'
       ? await getViewerBotStorageRenameBody(request, path, rawBody)
       : null;
-  const allowViewerRename = viewerRenameBody !== null;
+  const viewerAvatarBody =
+    session?.role === 'viewer' && method === 'PUT'
+      ? getViewerPlayerAvatarBody(path, rawBody)
+      : null;
+  const viewerEscalatedBody = viewerRenameBody ?? viewerAvatarBody;
+  const allowViewerMutation = viewerEscalatedBody !== null;
 
-  if (method !== 'GET' && session.role !== 'admin') {
-    if (!allowViewerRename) {
+  if (method !== 'GET' && session?.role !== 'admin' && !allowPublicMemberPrediction) {
+    if (!allowViewerMutation) {
       return forbidden();
     }
   }
@@ -304,14 +394,19 @@ async function proxyJsonRequest(
     method,
     headers: {
       'Content-Type': 'application/json',
-      'X-Internal-Api-Auth': getInternalApiAuthToken(),
-      'X-Admin-Role': allowViewerRename ? 'admin' : session.role,
+      ...(allowPublicMemberPrediction
+        ? {}
+        : {
+            'X-Internal-Api-Auth': getInternalApiAuthToken(),
+            'X-Admin-Role':
+              allowViewerMutation || session?.role === 'admin' ? 'admin' : 'viewer',
+          }),
     },
     cache: 'no-store',
   };
 
-  if (allowViewerRename) {
-    init.body = viewerRenameBody;
+  if (allowViewerMutation) {
+    init.body = viewerEscalatedBody;
   } else if ((method === 'POST' || method === 'PUT') && rawBody) {
     init.body = rawBody;
   }
@@ -322,6 +417,11 @@ async function proxyJsonRequest(
 
     if (contentType.includes('application/json')) {
       const data = await response.json();
+      if (allowPublicWorldCupRead && isRecord(data)) {
+        const publicData = { ...data };
+        delete publicData.memberKeys;
+        return NextResponse.json(publicData, { status: response.status });
+      }
       return NextResponse.json(data, { status: response.status });
     }
 

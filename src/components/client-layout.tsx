@@ -1,16 +1,35 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { AuthProvider, useAuth } from '@/contexts/auth-context';
+import { I18nProvider } from '@/contexts/i18n-context';
 import { Navigation } from '@/components/navigation';
 
 function ProtectedLayout({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading } = useAuth();
   const pathname = usePathname();
   const router = useRouter();
+  const [hasPredictionKey, setHasPredictionKey] = useState(false);
+  const [predictionKeyChecked, setPredictionKeyChecked] = useState(false);
+  const isPublicPredictionRoute =
+    pathname === '/world-cup/predict' || pathname.startsWith('/world-cup/predict/');
+  const isPublicWorldCupRoute =
+    pathname === '/world-cup' && hasPredictionKey && !isAuthenticated;
 
   useEffect(() => {
+    try {
+      setHasPredictionKey(Boolean(window.localStorage.getItem('worldCupPredictionKey')));
+    } catch {
+      setHasPredictionKey(false);
+    } finally {
+      setPredictionKeyChecked(true);
+    }
+  }, [pathname]);
+
+  useEffect(() => {
+    if (isPublicPredictionRoute || isPublicWorldCupRoute) return;
+    if (pathname === '/world-cup' && !predictionKeyChecked) return;
     if (isLoading) return;
 
     if (pathname === '/login') {
@@ -23,18 +42,25 @@ function ProtectedLayout({ children }: { children: React.ReactNode }) {
     if (!isAuthenticated) {
       router.replace('/login');
     }
-  }, [isAuthenticated, isLoading, pathname, router]);
+  }, [
+    isAuthenticated,
+    isLoading,
+    isPublicPredictionRoute,
+    isPublicWorldCupRoute,
+    predictionKeyChecked,
+    pathname,
+    router,
+  ]);
 
-  if (pathname === '/login') {
+  if (pathname === '/login' || isPublicPredictionRoute || isPublicWorldCupRoute) {
     return <>{children}</>;
   }
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#f5f5f5] dark:bg-[#111111]">
+      <div className="flex min-h-screen items-center justify-center bg-design-page">
         <div
-          className="w-10 h-10 rounded-full border-[3px] border-[#f2f2f2] dark:border-[#2e2e2e] animate-spin"
-          style={{ borderTopColor: '#ff385c' }}
+          className="h-10 w-10 animate-spin rounded-full border-[3px] border-design-muted border-t-design-primary"
         />
       </div>
     );
@@ -45,10 +71,10 @@ function ProtectedLayout({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="min-h-screen bg-[#f5f5f5] dark:bg-[#111111]">
+    <div className="min-h-screen bg-design-page text-design-text">
       <Navigation />
       <main className="transition-all duration-300 ease-in-out lg:ml-16">
-        <div className="px-4 py-6 lg:px-8 lg:py-8 max-w-[1600px]">
+        <div className="mx-auto max-w-[1600px] px-4 py-6 lg:px-8 lg:py-8">
           {children}
         </div>
       </main>
@@ -58,8 +84,10 @@ function ProtectedLayout({ children }: { children: React.ReactNode }) {
 
 export function ClientLayout({ children }: { children: React.ReactNode }) {
   return (
-    <AuthProvider>
-      <ProtectedLayout>{children}</ProtectedLayout>
-    </AuthProvider>
+    <I18nProvider>
+      <AuthProvider>
+        <ProtectedLayout>{children}</ProtectedLayout>
+      </AuthProvider>
+    </I18nProvider>
   );
 }
