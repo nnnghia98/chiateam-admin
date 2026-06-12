@@ -27,8 +27,6 @@ import type {
   WorldCupOverallResponse,
   WorldCupPickValue,
   WorldCupPredictionEntry,
-  WorldCupScore,
-  WorldCupWinner,
 } from '@/types/world-cup';
 import {
   ArrowRight,
@@ -61,7 +59,7 @@ type MemberKeyFormState = {
   name: string;
 };
 
-type PredictionBoard = Record<string, Record<string, WorldCupPredictionEntry>>;
+type PredictionBoard = Record<string, Record<string, WorldCupPredictionEntry | null>>;
 
 type ParsedBulkFixture = Required<WorldCupMatchPayload> & {
   lineNumber: number;
@@ -77,10 +75,6 @@ function splitBulkFixtureLine(line: string) {
   return line.split(',');
 }
 
-function scoreText(result: WorldCupScore | null | undefined) {
-  return result ? `${result.homeScore}-${result.awayScore}` : '';
-}
-
 function matchId(match: WorldCupMatch) {
   return String(match.id ?? match.matchNumber ?? '');
 }
@@ -92,30 +86,30 @@ function outcomeToPick(value?: WorldCupOutcome | string | number | null): WorldC
   return '';
 }
 
-function winnerToPick(winner?: WorldCupWinner | null): WorldCupPickValue | '' {
-  if (winner === 'HOME') return '1';
-  if (winner === 'AWAY') return '2';
-  if (winner === 'DRAW') return '0';
-  return '';
-}
-
-function rawPredictionPick(prediction?: WorldCupPredictionEntry) {
+function rawPredictionPick(prediction?: WorldCupPredictionEntry | null) {
   if (!prediction) return '';
-  return outcomeToPick(prediction.value) || winnerToPick(prediction.winner);
+  return outcomeToPick(prediction.value) || outcomeToPick(prediction.prediction);
 }
 
-function predictionPick(prediction?: WorldCupPredictionEntry) {
+function predictionPick(prediction?: WorldCupPredictionEntry | null) {
   if (!prediction) return '';
   if (prediction.censored || prediction.value === '***') return '***';
   return rawPredictionPick(prediction);
 }
 
+function displayPick(pick: WorldCupPickValue | '***' | '' | '-') {
+  if (pick === '0') return 'H';
+  return pick;
+}
+
 function visiblePredictionPick(
-  prediction: WorldCupPredictionEntry | undefined,
+  prediction: WorldCupPredictionEntry | null | undefined,
   status: ReturnType<typeof getWorldCupEffectiveStatus>
 ) {
-  if (status === 'OPEN') return predictionPick(prediction) || '***';
-  return rawPredictionPick(prediction) || '-';
+  const pick = status === 'OPEN'
+    ? predictionPick(prediction) || '***'
+    : rawPredictionPick(prediction) || '-';
+  return displayPick(pick);
 }
 
 function toMatchArray(response: any): WorldCupMatch[] {
@@ -251,11 +245,15 @@ function normalizeMembers(
   const matchIds = new Set(matches.map(match => matchId(match)));
   Object.entries(entries).forEach(([outerId, inner]) => {
     if (matchIds.has(outerId)) {
-      Object.values(inner ?? {}).forEach(add);
+      Object.values(inner ?? {}).forEach(entry => {
+        if (entry) add(entry);
+      });
     } else {
-      Object.values(inner ?? {}).forEach(entry =>
-        add({ id: outerId, name: entry.name, username: entry.username })
-      );
+      Object.values(inner ?? {}).forEach(entry => {
+        if (entry) {
+          add({ id: outerId, name: entry.name, username: entry.username });
+        }
+      });
     }
   });
 
@@ -266,7 +264,7 @@ function normalizePredictionBoard(
   response: WorldCupOverallResponse | null,
   matches: WorldCupMatch[]
 ): PredictionBoard {
-  const raw = response?.predictions ?? response?.entries ?? {};
+  const raw = response?.predictions ?? {};
   const matchIds = new Set(matches.map(match => matchId(match)));
   const board: PredictionBoard = {};
 
@@ -274,11 +272,11 @@ function normalizePredictionBoard(
     Object.entries(inner ?? {}).forEach(([innerId, entry]) => {
       const matchId = matchIds.has(outerId) ? outerId : innerId;
       const userId = matchIds.has(outerId)
-        ? String(entry.userId ?? innerId)
+        ? String(entry?.userId ?? innerId)
         : outerId;
       board[userId] = {
         ...(board[userId] ?? {}),
-        [matchId]: { ...entry, userId },
+        [matchId]: entry ? { ...entry, userId } : null,
       };
     });
   });
@@ -314,32 +312,23 @@ function calculateTotals(
   );
 }
 
-function splitKickoff(match: WorldCupMatch) {
-  const anyMatch = match as any;
-  if (anyMatch.date || anyMatch.time) {
-    return {
-      date: String(anyMatch.date ?? ''),
-      time: String(anyMatch.time ?? ''),
-    };
-  }
-
-  const parts = String(match.kickoff || '').trim().split(/\s+/);
+function matchSchedule(match: WorldCupMatch) {
   return {
-    date: parts[0] ?? '',
-    time: parts.slice(1).join(' ') || '',
+    date: String(match.date ?? ''),
+    time: String(match.time ?? ''),
   };
 }
 
 function resultPick(match: WorldCupMatch) {
-  const result = match.result;
-  if (typeof result === 'number' || typeof result === 'string') {
-    return outcomeToPick(result);
-  }
-  return winnerToPick(result?.winner) || scoreText(result) || '';
+  return outcomeToPick(match.result);
+}
+
+function resultDisplay(match: WorldCupMatch) {
+  return displayPick(resultPick(match) || '-');
 }
 
 export default function WorldCupPage() {
-  const { canEdit, isAuthenticated } = useAuth();
+  const { canEdit, isAuthenticated, isLoading: authLoading } = useAuth();
   const { t } = useI18n();
   const [predictionKey, setPredictionKey] = useState('');
   const [predictionKeyChecked, setPredictionKeyChecked] = useState(false);
@@ -363,8 +352,8 @@ export default function WorldCupPage() {
   const sortedMatches = useMemo(
     () =>
       [...matches].sort((a, b) => {
-        const aTime = `${a.date ?? ''} ${a.time ?? ''} ${a.kickoff ?? ''}`;
-        const bTime = `${b.date ?? ''} ${b.time ?? ''} ${b.kickoff ?? ''}`;
+        const aTime = `${a.date ?? ''} ${a.time ?? ''}`;
+        const bTime = `${b.date ?? ''} ${b.time ?? ''}`;
         return aTime.localeCompare(bTime);
       }),
     [matches]
@@ -381,27 +370,37 @@ export default function WorldCupPage() {
   }, []);
 
   const loadWorldCupData = useCallback(async () => {
+    if (authLoading) return;
     if (!isAuthenticated && !predictionKeyChecked) return;
 
     try {
       setLoading(true);
-      const memberKeyForRead = !isAuthenticated ? predictionKey : undefined;
+      if (!isAuthenticated && predictionKey) {
+        const response = await apiClient.getWorldCupMemberPredictions(predictionKey);
+        const loadedMatches = toMatchArray(response);
+        const member = response.member;
+        const id = memberId(member);
+        const board = { [id]: response.predictions ?? {} };
 
-      const [overallResponse, matchesResponse, leaderboardResponse, keysResponse] =
+        setMatches(loadedMatches);
+        setMembers([member]);
+        setMemberKeys([]);
+        setPredictionBoard(board);
+        setTotals(calculateTotals([member], loadedMatches, board, null, []));
+        return;
+      }
+
+      const [overallResponse, keysResponse] =
         await Promise.all([
-          apiClient.getWorldCupPredictions(memberKeyForRead).catch(() => null),
-          apiClient.getWorldCupMatches(memberKeyForRead),
-          apiClient
-            .getWorldCupLeaderboard(memberKeyForRead)
-            .catch(() => ({ rows: [] })),
-          isAuthenticated
+          apiClient.getWorldCupPredictions().catch(() => null),
+          canEdit
             ? apiClient.getWorldCupMemberKeys().catch(() => [])
             : Promise.resolve([]),
         ]);
 
-      const loadedMatches = toMatchArray(matchesResponse);
+      const loadedMatches = toMatchArray(overallResponse);
       const keys = normalizeMemberKeyResponse(keysResponse);
-      const leaderboard = (leaderboardResponse.rows ?? []) as WorldCupLeaderboardRow[];
+      const leaderboard: WorldCupLeaderboardRow[] = [];
       const normalizedMembers = normalizeMembers(
         overallResponse,
         keys,
@@ -423,7 +422,7 @@ export default function WorldCupPage() {
     } finally {
       setLoading(false);
     }
-  }, [isAuthenticated, predictionKey, predictionKeyChecked, t]);
+  }, [authLoading, canEdit, isAuthenticated, predictionKey, predictionKeyChecked, t]);
 
   useEffect(() => {
     void loadWorldCupData();
@@ -630,12 +629,12 @@ export default function WorldCupPage() {
     await navigator.clipboard.writeText(url);
   };
 
-  const isMemberWorldCupView = !isAuthenticated && Boolean(predictionKey);
+  const isMemberWorldCupView = !authLoading && !isAuthenticated && Boolean(predictionKey);
   const pageClassName = isMemberWorldCupView
     ? 'mx-auto min-h-screen max-w-[1600px] space-y-5 bg-design-page px-4 py-6 text-design-text lg:px-8 lg:py-8'
     : 'space-y-5';
 
-  if (loading) {
+  if (authLoading || loading) {
     return (
       <div
         className={
@@ -682,7 +681,7 @@ export default function WorldCupPage() {
           <table className="w-full min-w-[1120px] border-collapse text-sm text-design-text">
             <thead>
               <tr className="bg-design-muted text-lg font-black">
-                <th colSpan={6} className="border border-design-border-soft px-2 py-1" />
+                <th colSpan={5} className="border border-design-border-soft px-2 py-1" />
                 <th className="border border-design-border-soft px-2 py-1 text-right">
                   {t('worldCup.totalPoints')}
                 </th>
@@ -701,7 +700,6 @@ export default function WorldCupPage() {
                 <th className="w-28 border border-design-border-soft px-3 py-2">{t('worldCup.time')}</th>
                 <th className="w-48 border border-design-border-soft px-3 py-2">{t('worldCup.teamOne')}</th>
                 <th className="w-48 border border-design-border-soft px-3 py-2">{t('worldCup.teamTwo')}</th>
-                <th className="w-32 border border-design-border-soft px-3 py-2">{t('common.status')}</th>
                 <th className="w-40 border border-design-border-soft px-3 py-2">
                   {t('worldCup.actualResult')}
                 </th>
@@ -719,7 +717,7 @@ export default function WorldCupPage() {
               {sortedMatches.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={7 + members.length}
+                    colSpan={6 + members.length}
                     className="border border-design-border-soft px-3 py-12 text-center text-base text-design-secondary"
                   >
                     {t('worldCup.noFixtures')}
@@ -727,7 +725,7 @@ export default function WorldCupPage() {
                 </tr>
               ) : (
                 sortedMatches.map((match, index) => {
-                  const kickoff = splitKickoff(match);
+                  const schedule = matchSchedule(match);
                   const id = matchId(match);
                   const status = getWorldCupEffectiveStatus(match);
                   return (
@@ -736,13 +734,13 @@ export default function WorldCupPage() {
                       className={index % 2 === 0 ? 'bg-design-card' : 'bg-design-muted/50'}
                     >
                       <td className="border border-design-border-soft px-3 py-2 text-center font-semibold">
-                        {t('worldCup.round')} {index + 1}
+                        {match.matchNumber ?? index + 1}
                       </td>
                       <td className="border border-design-border-soft px-3 py-2 text-center">
-                        {kickoff.date}
+                        {schedule.date}
                       </td>
                       <td className="border border-design-border-soft px-3 py-2 text-center">
-                        {kickoff.time}
+                        {schedule.time}
                       </td>
                       <td className="border border-design-border-soft px-3 py-2 font-medium">
                         {match.homeTeam}
@@ -750,11 +748,8 @@ export default function WorldCupPage() {
                       <td className="border border-design-border-soft px-3 py-2 font-medium">
                         {match.awayTeam}
                       </td>
-                      <td className="border border-design-border-soft px-3 py-2 text-center text-xs font-bold text-design-secondary">
-                        {status}
-                      </td>
                       <td className="border border-design-border-soft px-3 py-2 text-center text-lg font-bold">
-                        {resultPick(match) || '-'}
+                        {resultDisplay(match)}
                       </td>
                       {members.map(member => {
                         const memberKey = memberId(member);
@@ -946,7 +941,7 @@ export default function WorldCupPage() {
                       <option value="">-</option>
                       <option value="1">1</option>
                       <option value="2">2</option>
-                      <option value="0">0</option>
+                      <option value="0">H</option>
                     </select>
                   </div>
                   <div className="flex items-end gap-2">
@@ -969,7 +964,7 @@ export default function WorldCupPage() {
               <div className="max-h-[440px] overflow-auto rounded-airbnb border border-design-border-soft">
                 {sortedMatches.map(match => {
                   const id = matchId(match);
-                  const kickoff = splitKickoff(match);
+                  const schedule = matchSchedule(match);
                   const status = getWorldCupEffectiveStatus(match);
                   return (
                   <div
@@ -981,7 +976,7 @@ export default function WorldCupPage() {
                         {id} · {match.homeTeam} vs {match.awayTeam}
                       </p>
                       <p className="mt-1 text-xs text-design-secondary">
-                        {kickoff.date} {kickoff.time} · {status} · {t('common.result')} {resultPick(match) || '-'}
+                        {schedule.date} {schedule.time} · {status} · {t('common.result')} {resultDisplay(match)}
                       </p>
                     </div>
                     <div className="flex flex-wrap gap-1.5 md:justify-end">
@@ -995,8 +990,8 @@ export default function WorldCupPage() {
                           setResultMatch(null);
                           setFormData({
                             matchNumber: id,
-                            date: kickoff.date,
-                            time: kickoff.time,
+                            date: schedule.date,
+                            time: schedule.time,
                             homeTeam: match.homeTeam,
                             awayTeam: match.awayTeam,
                           });

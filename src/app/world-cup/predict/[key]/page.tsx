@@ -14,8 +14,6 @@ import type {
   WorldCupOutcome,
   WorldCupPickValue,
   WorldCupPredictionEntry,
-  WorldCupScore,
-  WorldCupWinner,
 } from '@/types/world-cup';
 import { ArrowLeft, Save, ShieldCheck } from 'lucide-react';
 
@@ -23,7 +21,7 @@ type PageProps = {
   params: Promise<{ key: string }>;
 };
 
-type PredictionMap = Record<string, WorldCupPredictionEntry>;
+type PredictionMap = Record<string, WorldCupPredictionEntry | null>;
 
 function matchId(match: WorldCupMatch) {
   return String(match.id ?? match.matchNumber ?? '');
@@ -36,13 +34,6 @@ function outcomeToPick(value?: WorldCupOutcome | string | number | null): WorldC
   return '';
 }
 
-function winnerToPick(winner?: WorldCupWinner | null): WorldCupPickValue | '' {
-  if (winner === 'HOME') return '1';
-  if (winner === 'AWAY') return '2';
-  if (winner === 'DRAW') return '0';
-  return '';
-}
-
 function pickToOutcome(pick: string): WorldCupOutcome | null {
   if (pick === '0') return 0;
   if (pick === '1') return 1;
@@ -50,38 +41,22 @@ function pickToOutcome(pick: string): WorldCupOutcome | null {
   return null;
 }
 
-function predictionPick(prediction?: WorldCupPredictionEntry) {
+function predictionPick(prediction?: WorldCupPredictionEntry | null) {
   if (!prediction) return '';
   if (prediction.censored || prediction.value === '***') return '***';
-  return outcomeToPick(prediction.value) || winnerToPick(prediction.winner);
+  return outcomeToPick(prediction.value) || outcomeToPick(prediction.prediction);
 }
 
-function scoreText(result: WorldCupScore | null | undefined) {
-  return result ? `${result.homeScore}-${result.awayScore}` : '';
-}
-
-function splitKickoff(match: WorldCupMatch) {
-  const anyMatch = match as any;
-  if (anyMatch.date || anyMatch.time) {
-    return {
-      date: String(anyMatch.date ?? ''),
-      time: String(anyMatch.time ?? ''),
-    };
-  }
-
-  const parts = String(match.kickoff || '').trim().split(/\s+/);
+function matchSchedule(match: WorldCupMatch) {
   return {
-    date: parts[0] ?? '',
-    time: parts.slice(1).join(' ') || '',
+    date: String(match.date ?? ''),
+    time: String(match.time ?? ''),
   };
 }
 
-function resultPick(match: WorldCupMatch) {
-  const result = match.result;
-  if (typeof result === 'number' || typeof result === 'string') {
-    return outcomeToPick(result);
-  }
-  return winnerToPick(result?.winner) || scoreText(result) || '';
+function displayPick(pick: WorldCupPickValue | '***' | '' | '-') {
+  if (pick === '0') return 'H';
+  return pick;
 }
 
 export default function WorldCupMemberPredictionPage({ params }: PageProps) {
@@ -97,8 +72,8 @@ export default function WorldCupMemberPredictionPage({ params }: PageProps) {
   const sortedMatches = useMemo(
     () =>
       [...matches].sort((a, b) => {
-        const aTime = `${a.date ?? ''} ${a.time ?? ''} ${a.kickoff ?? ''}`;
-        const bTime = `${b.date ?? ''} ${b.time ?? ''} ${b.kickoff ?? ''}`;
+        const aTime = `${a.date ?? ''} ${a.time ?? ''}`;
+        const bTime = `${b.date ?? ''} ${b.time ?? ''}`;
         return aTime.localeCompare(bTime);
       }),
     [matches]
@@ -114,10 +89,10 @@ export default function WorldCupMemberPredictionPage({ params }: PageProps) {
       setPredictions(loadedPredictions);
       setDrafts(
         Object.fromEntries(
-          Object.entries(loadedPredictions).map(([matchId, entry]) => [
-            matchId,
-            predictionPick(entry) as WorldCupPickValue | '',
-          ])
+          Object.entries(loadedPredictions).map(([matchId, entry]) => {
+            const pick = predictionPick(entry);
+            return [matchId, pick === '***' ? '' : pick];
+          })
         )
       );
     } catch (error) {
@@ -133,12 +108,18 @@ export default function WorldCupMemberPredictionPage({ params }: PageProps) {
   }, [loadPredictions]);
 
   const savePrediction = async (matchId: string) => {
+    const prediction = pickToOutcome(drafts[matchId] ?? '');
+    if (prediction === null) {
+      alert(t('memberPrediction.saveError'));
+      return;
+    }
+
     try {
       setSavingMatchId(matchId);
       await apiClient.updateWorldCupMemberPrediction(
         key,
         matchId,
-        pickToOutcome(drafts[matchId] ?? '')
+        prediction
       );
       await loadPredictions();
     } catch (error) {
@@ -204,7 +185,7 @@ export default function WorldCupMemberPredictionPage({ params }: PageProps) {
             </thead>
             <tbody>
               {sortedMatches.map((match, index) => {
-                const kickoff = splitKickoff(match);
+                const schedule = matchSchedule(match);
                 const id = matchId(match);
                 const value =
                   drafts[id] ?? predictionPick(predictions[id]);
@@ -215,13 +196,13 @@ export default function WorldCupMemberPredictionPage({ params }: PageProps) {
                     className={index % 2 === 0 ? 'bg-design-card' : 'bg-design-muted/50'}
                   >
                     <td className="border border-design-border-soft px-3 py-2 text-center font-semibold">
-                      {t('worldCup.round')} {index + 1}
+                      {match.matchNumber ?? index + 1}
                     </td>
                     <td className="border border-design-border-soft px-3 py-2 text-center">
-                      {kickoff.date}
+                      {schedule.date}
                     </td>
                     <td className="border border-design-border-soft px-3 py-2 text-center">
-                      {kickoff.time}
+                      {schedule.time}
                     </td>
                     <td className="border border-design-border-soft px-3 py-2 font-medium">
                       {match.homeTeam}
@@ -232,7 +213,7 @@ export default function WorldCupMemberPredictionPage({ params }: PageProps) {
                     <td className="border border-design-border-soft bg-design-active/50 px-3 py-1 text-center">
                       {isClosed ? (
                         <span className="text-lg font-bold">
-                          {value || '-'}
+                          {displayPick(value || '-')}
                         </span>
                       ) : (
                         <select
@@ -246,7 +227,7 @@ export default function WorldCupMemberPredictionPage({ params }: PageProps) {
                           className="h-10 w-full rounded-airbnb border border-design-border bg-design-card px-3 text-center text-lg font-bold text-design-text outline-none focus:border-design-primary focus:ring-2 focus:ring-design-primary/20"
                         >
                           <option value="">-</option>
-                          <option value="0">0</option>
+                          <option value="0">H</option>
                           <option value="1">1</option>
                           <option value="2">2</option>
                         </select>

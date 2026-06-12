@@ -105,40 +105,10 @@ function isWorldCupMemberPredictionPath(path: string[]) {
   );
 }
 
-function isWorldCupPublicReadPath(path: string[]) {
+function isWorldCupMemberKeyPath(path: string[]) {
   const normalized = path.map(segment => segment.toLowerCase());
   const worldCupIndex = normalized.lastIndexOf('world-cup-predictions');
-  if (worldCupIndex < 0) return false;
-
-  const afterBase = normalized.slice(worldCupIndex + 1);
-  if (afterBase.length === 0) return true;
-  return afterBase.length === 1 && ['matches', 'leaderboard'].includes(afterBase[0]);
-}
-
-async function hasValidWorldCupMemberKey(request: NextRequest, path: string[]) {
-  const key = request.headers.get('x-world-cup-member-key')?.trim();
-  if (!key) return false;
-
-  const normalized = path.map(segment => segment.toLowerCase());
-  const worldCupIndex = normalized.lastIndexOf('world-cup-predictions');
-  const prefix = path.slice(0, worldCupIndex + 1);
-  const validationUrl = buildApiUrl(request, [
-    ...prefix,
-    'member',
-    encodeURIComponent(key),
-  ]);
-
-  try {
-    const response = await fetch(validationUrl, {
-      method: 'GET',
-      headers: { 'Content-Type': 'application/json' },
-      cache: 'no-store',
-    });
-    return response.ok;
-  } catch (error) {
-    console.error('World Cup member key validation failed:', error);
-    return false;
-  }
+  return worldCupIndex >= 0 && normalized[worldCupIndex + 1] === 'member-keys';
 }
 
 function normalizeAvatarValue(value: unknown) {
@@ -358,13 +328,12 @@ async function proxyJsonRequest(
   const session = getSessionFromRequest(request);
   const allowPublicMemberPrediction =
     isWorldCupMemberPredictionPath(path) && (method === 'GET' || method === 'PUT');
-  const allowPublicWorldCupRead =
-    !session &&
-    method === 'GET' &&
-    isWorldCupPublicReadPath(path) &&
-    (await hasValidWorldCupMemberKey(request, path));
+  const allowPublicWorldCupMemberKeys = isWorldCupMemberKeyPath(path);
+  const shouldSendTrustedAdminHeaders =
+    !allowPublicMemberPrediction &&
+    (!allowPublicWorldCupMemberKeys || Boolean(session));
 
-  if (!session && !allowPublicMemberPrediction && !allowPublicWorldCupRead) {
+  if (!session && !allowPublicMemberPrediction && !allowPublicWorldCupMemberKeys) {
     return unauthorized();
   }
 
@@ -384,7 +353,12 @@ async function proxyJsonRequest(
   const viewerEscalatedBody = viewerRenameBody ?? viewerAvatarBody;
   const allowViewerMutation = viewerEscalatedBody !== null;
 
-  if (method !== 'GET' && session?.role !== 'admin' && !allowPublicMemberPrediction) {
+  if (
+    method !== 'GET' &&
+    session?.role !== 'admin' &&
+    !allowPublicMemberPrediction &&
+    !allowPublicWorldCupMemberKeys
+  ) {
     if (!allowViewerMutation) {
       return forbidden();
     }
@@ -394,13 +368,13 @@ async function proxyJsonRequest(
     method,
     headers: {
       'Content-Type': 'application/json',
-      ...(allowPublicMemberPrediction
-        ? {}
-        : {
+      ...(shouldSendTrustedAdminHeaders
+        ? {
             'X-Internal-Api-Auth': getInternalApiAuthToken(),
             'X-Admin-Role':
               allowViewerMutation || session?.role === 'admin' ? 'admin' : 'viewer',
-          }),
+          }
+        : {}),
     },
     cache: 'no-store',
   };
@@ -417,11 +391,6 @@ async function proxyJsonRequest(
 
     if (contentType.includes('application/json')) {
       const data = await response.json();
-      if (allowPublicWorldCupRead && isRecord(data)) {
-        const publicData = { ...data };
-        delete publicData.memberKeys;
-        return NextResponse.json(publicData, { status: response.status });
-      }
       return NextResponse.json(data, { status: response.status });
     }
 

@@ -6,7 +6,6 @@ import type {
   WorldCupMemberPredictionResponse,
   WorldCupOutcome,
   WorldCupOverallResponse,
-  WorldCupPredictionsResponse,
 } from '@/types/world-cup';
 
 // Browser requests always go through the Next.js proxy route.
@@ -131,21 +130,12 @@ class ApiClient {
   }
 
   // World Cup Predictions
-  private worldCupMemberKeyHeaders(memberKey?: string): HeadersInit | undefined {
-    return memberKey ? { 'X-World-Cup-Member-Key': memberKey } : undefined;
+  async getWorldCupPredictions() {
+    return this.fetch<WorldCupOverallResponse>('/api/world-cup-predictions');
   }
 
-  async getWorldCupPredictions(memberKey?: string) {
-    return this.fetch<WorldCupPredictionsResponse & WorldCupOverallResponse>(
-      '/api/world-cup-predictions',
-      { headers: this.worldCupMemberKeyHeaders(memberKey) }
-    );
-  }
-
-  async getWorldCupMatches(memberKey?: string) {
-    return this.fetch<any>('/api/world-cup-predictions/matches', {
-      headers: this.worldCupMemberKeyHeaders(memberKey),
-    });
+  async getWorldCupMatches() {
+    return this.fetch<any>('/api/world-cup-predictions/matches');
   }
 
   async getWorldCupMatch(matchId: string) {
@@ -171,19 +161,12 @@ class ApiClient {
     );
   }
 
-  async setWorldCupMatchResult(matchId: string, result: WorldCupOutcome | string) {
-    const body =
-      typeof result === 'number'
-        ? { result }
-        : /^\d{1,2}-\d{1,2}$/.test(result)
-          ? { score: result }
-          : { result: Number(result) as WorldCupOutcome };
-
+  async setWorldCupMatchResult(matchId: string, result: WorldCupOutcome) {
     return this.fetch<WorldCupMatchDetail>(
       `/api/world-cup-predictions/matches/${encodeURIComponent(matchId)}/result`,
       {
         method: 'POST',
-        body: JSON.stringify(body),
+        body: JSON.stringify({ result }),
       }
     );
   }
@@ -195,10 +178,9 @@ class ApiClient {
     );
   }
 
-  async getWorldCupLeaderboard(memberKey?: string) {
+  async getWorldCupLeaderboard() {
     return this.fetch<WorldCupLeaderboardResponse>(
-      '/api/world-cup-predictions/leaderboard',
-      { headers: this.worldCupMemberKeyHeaders(memberKey) }
+      '/api/world-cup-predictions/leaderboard'
     );
   }
 
@@ -208,7 +190,7 @@ class ApiClient {
     );
   }
 
-  async createWorldCupMemberKey(data: { memberId: string; name: string }) {
+  async createWorldCupMemberKey(data: { memberId: string; name: string; key?: string }) {
     return this.fetch<WorldCupMemberKey | { member: WorldCupMemberKey; memberKey: WorldCupMemberKey }>('/api/world-cup-predictions/member-keys', {
       method: 'POST',
       body: JSON.stringify(data),
@@ -238,7 +220,7 @@ class ApiClient {
   async updateWorldCupMemberPrediction(
     key: string,
     matchId: string,
-    prediction: WorldCupOutcome | null
+    prediction: WorldCupOutcome
   ) {
     return this.fetch<WorldCupMemberPredictionResponse>(
       `/api/world-cup-predictions/member/${encodeURIComponent(key)}/predictions/${encodeURIComponent(matchId)}`,

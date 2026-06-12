@@ -71,33 +71,18 @@ function vietnamTimeToTimestamp(
 }
 
 export function worldCupMatchStartTime(match: WorldCupMatch) {
-  if (match.date && match.time) {
-    const date = parseDateParts(String(match.date));
-    const time = parseTimeParts(String(match.time));
-    if (date && time) {
-      return vietnamTimeToTimestamp(
-        date.year,
-        date.month,
-        date.day,
-        time.hour,
-        time.minute
-      );
-    }
+  const date = parseDateParts(String(match.date ?? ''));
+  const time = parseTimeParts(String(match.time ?? ''));
+  if (date && time) {
+    return vietnamTimeToTimestamp(
+      date.year,
+      date.month,
+      date.day,
+      time.hour,
+      time.minute
+    );
   }
-
-  const kickoffMatch = String(match.kickoff || '').match(
-    /^(\d{1,2})\/(\d{1,2})\/(\d{4})\s+(\d{1,2}):(\d{2})$/
-  );
-  if (!kickoffMatch) return null;
-
-  const [, day, month, year, hour, minute] = kickoffMatch;
-  return vietnamTimeToTimestamp(
-    Number(year),
-    Number(month),
-    Number(day),
-    Number(hour),
-    Number(minute)
-  );
+  return null;
 }
 
 export function getWorldCupEffectiveStatus(

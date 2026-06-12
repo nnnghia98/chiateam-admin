@@ -1,24 +1,16 @@
 export type WorldCupMatchStatus = 'OPEN' | 'LOCKED' | 'CLOSED' | 'SETTLED';
-export type WorldCupWinner = 'HOME' | 'AWAY' | 'DRAW';
 export type WorldCupOutcome = 0 | 1 | 2;
 export type WorldCupPickValue = '0' | '1' | '2';
 
-export interface WorldCupScore {
-  homeScore: number;
-  awayScore: number;
-  winner: WorldCupWinner;
-}
-
 export interface WorldCupMatch {
   id: string;
-  matchNumber?: number;
-  date?: string;
-  time?: string;
+  matchNumber: number;
+  date: string;
+  time: string;
   homeTeam: string;
   awayTeam: string;
-  kickoff?: string;
   status?: WorldCupMatchStatus;
-  result?: WorldCupOutcome | WorldCupScore | null;
+  result?: WorldCupOutcome | null;
   createdBy?: number | null;
   createdAt?: string;
   updatedAt?: string;
@@ -30,12 +22,10 @@ export interface WorldCupPredictionEntry {
   matchId?: string;
   name?: string;
   username?: string | null;
-  value?: WorldCupOutcome | '***' | string | null;
+  prediction?: WorldCupOutcome | '***' | null;
+  value?: WorldCupOutcome | '***' | null;
   censored?: boolean;
-  homeScore?: number;
-  awayScore?: number;
-  winner?: WorldCupWinner | null;
-  updatedAt: string;
+  updatedAt?: string;
 }
 
 export interface WorldCupPredictionRow extends WorldCupPredictionEntry {
@@ -102,14 +92,14 @@ export interface WorldCupMemberKey extends WorldCupMember {
 export interface WorldCupOverallResponse {
   matches?: WorldCupMatch[] | Record<string, WorldCupMatch>;
   members?: WorldCupMember[] | Record<string, WorldCupMember>;
-  predictions?: Record<string, Record<string, WorldCupPredictionEntry>>;
-  entries?: Record<string, Record<string, WorldCupPredictionEntry>>;
+  predictions?: Record<string, Record<string, WorldCupPredictionEntry | null>>;
+  entries?: Record<string, Record<string, WorldCupPredictionEntry | null>>;
   totals?: Record<string, number>;
 }
 
 export interface WorldCupMemberPredictionResponse {
   member: WorldCupMember;
   matches: WorldCupMatch[];
-  predictions?: Record<string, WorldCupPredictionEntry>;
-  entries?: Record<string, WorldCupPredictionEntry>;
+  predictions?: Record<string, WorldCupPredictionEntry | null>;
+  entries?: Record<string, WorldCupPredictionEntry | null>;
 }
