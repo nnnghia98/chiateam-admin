@@ -14,6 +14,7 @@ import {
   Menu,
   Swords,
   Shirt,
+  Goal,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/auth-context';
 import { ThemeToggle } from '@/components/theme-toggle';
@@ -25,18 +26,21 @@ import {
   SheetTitle,
   SheetTrigger,
 } from '@/components/ui/sheet';
+import { LanguageToggle } from '@/components/language-toggle';
+import { useI18n } from '@/contexts/i18n-context';
 
 const links = [
-  { href: '/next-match', label: 'Next Match', icon: Swords },
-  { href: '/players', label: 'Players', icon: Users },
-  { href: '/shirts', label: 'Shirts', icon: Shirt },
-  { href: '/matches', label: 'Matches', icon: Calendar },
-  { href: '/leaderboard', label: 'Leaderboard', icon: Trophy },
-];
+  { href: '/world-cup', labelKey: 'nav.worldCup', icon: Goal },
+  { href: '/next-match', labelKey: 'nav.nextMatch', icon: Swords },
+  { href: '/players', labelKey: 'nav.players', icon: Users },
+  { href: '/shirts', labelKey: 'nav.shirts', icon: Shirt },
+  { href: '/matches', labelKey: 'nav.matches', icon: Calendar },
+  { href: '/leaderboard', labelKey: 'nav.leaderboard', icon: Trophy },
+] as const;
 
 function SidebarTooltip({ children }: { children: React.ReactNode }) {
   return (
-    <span className="pointer-events-none absolute left-full top-1/2 z-50 ml-3 -translate-y-1/2 translate-x-1 whitespace-nowrap rounded-airbnb bg-[#222222] px-2.5 py-1.5 text-xs font-semibold text-white opacity-0 shadow-airbnb-card transition-all duration-150 group-hover:translate-x-0 group-hover:opacity-100 dark:bg-white dark:text-[#222222]">
+    <span className="pointer-events-none absolute left-full top-1/2 z-50 ml-3 -translate-y-1/2 translate-x-1 whitespace-nowrap rounded-airbnb bg-[#222222] px-2.5 py-1.5 text-xs font-semibold text-white opacity-0 shadow-design-card transition-all duration-150 group-hover:translate-x-0 group-hover:opacity-100 dark:bg-white dark:text-[#222222]">
       {children}
     </span>
   );
@@ -46,7 +50,9 @@ export function Navigation() {
   const pathname = usePathname();
   const router = useRouter();
   const { role, logout } = useAuth();
+  const { t } = useI18n();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const roleLabel = role === 'admin' ? t('common.admin') : t('common.viewer');
 
   const handleLogout = async () => {
     await logout();
@@ -57,18 +63,14 @@ export function Navigation() {
     <>
       {/* ── Desktop Sidebar ─────────────────────────────────── */}
       <aside
-        className="fixed left-0 top-0 z-40 hidden h-full w-16 flex-col overflow-visible border-r border-[#f2f2f2] bg-white transition-colors duration-200 dark:border-[#2e2e2e] dark:bg-[#1c1c1e] lg:flex"
-        style={{
-          boxShadow:
-            'rgba(0,0,0,0.02) 0px 0px 0px 1px, rgba(0,0,0,0.04) 0px 2px 6px, rgba(0,0,0,0.1) 0px 4px 8px',
-        }}
+        className="fixed left-0 top-0 z-40 hidden h-full w-16 flex-col overflow-visible border-r border-design-border-soft bg-design-card shadow-design-card transition-colors duration-200 lg:flex"
       >
         {/* Logo row */}
         <div className="flex h-16 flex-shrink-0 items-center justify-center px-2">
           <Link
             href="/"
             aria-label="Chiateam home"
-            className="group relative flex h-10 w-10 items-center justify-center rounded-full bg-[#fff0f2] text-base font-bold text-[#ff385c] outline-none transition-colors hover:bg-[#ffe4e9] focus-visible:ring-2 focus-visible:ring-[#ff385c] focus-visible:ring-offset-2 dark:bg-[#3a1020] dark:hover:bg-[#4a1428] dark:focus-visible:ring-offset-[#1c1c1e]"
+            className="group relative flex h-10 w-10 items-center justify-center rounded-full bg-design-active text-base font-bold text-design-primary-strong outline-none transition-colors hover:brightness-95 focus-visible:ring-2 focus-visible:ring-design-primary focus-visible:ring-offset-2 focus-visible:ring-offset-design-card dark:hover:brightness-110"
           >
             C
             <SidebarTooltip>Chiateam</SidebarTooltip>
@@ -76,7 +78,7 @@ export function Navigation() {
         </div>
 
         {/* Divider */}
-        <div className="h-px bg-[#f2f2f2] dark:bg-[#2e2e2e] mx-3 flex-shrink-0" />
+        <div className="mx-3 h-px flex-shrink-0 bg-design-border-soft" />
 
         {/* Nav links */}
         <nav className="flex flex-1 flex-col items-center gap-1 overflow-visible py-3">
@@ -87,16 +89,16 @@ export function Navigation() {
               <Link
                 key={link.href}
                 href={link.href}
-                aria-label={link.label}
+                aria-label={t(link.labelKey)}
                 className={cn(
-                  'group relative flex h-11 w-11 items-center justify-center rounded-airbnb border-l-2 text-sm font-medium outline-none transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-[#ff385c] focus-visible:ring-offset-2 dark:focus-visible:ring-offset-[#1c1c1e]',
+                  'group relative flex h-11 w-11 items-center justify-center rounded-airbnb border-l-2 text-sm font-medium outline-none transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-design-primary focus-visible:ring-offset-2 focus-visible:ring-offset-design-card',
                   isActive
-                    ? 'border-[#ff385c] bg-[#fff0f2] text-[#ff385c] dark:bg-[#3a1020]'
-                    : 'border-transparent text-[#6a6a6a] hover:bg-[#f2f2f2] hover:text-[#222222] dark:text-[#a3a3a3] dark:hover:bg-[#2a2a2a] dark:hover:text-white'
+                    ? 'border-design-primary bg-design-active text-design-primary-strong'
+                    : 'border-transparent text-design-secondary hover:bg-design-muted hover:text-design-text'
                 )}
               >
                 <Icon className="h-4 w-4 flex-shrink-0" />
-                <SidebarTooltip>{link.label}</SidebarTooltip>
+                <SidebarTooltip>{t(link.labelKey)}</SidebarTooltip>
               </Link>
             );
           })}
@@ -104,62 +106,66 @@ export function Navigation() {
 
         {/* Footer: role + theme + logout */}
         <div className="flex flex-shrink-0 flex-col items-center gap-1 px-2 pb-4">
-          <div className="mb-3 h-px w-10 bg-[#f2f2f2] dark:bg-[#2e2e2e]" />
+          <div className="mb-3 h-px w-10 bg-design-border-soft" />
 
           {/* Role */}
           <div
-            aria-label={role === 'admin' ? 'Admin' : 'Viewer'}
-            className="group relative flex h-11 w-11 items-center justify-center rounded-airbnb text-[#6a6a6a] dark:text-[#a3a3a3]"
+            aria-label={roleLabel}
+            className="group relative flex h-11 w-11 items-center justify-center rounded-airbnb text-design-secondary"
           >
             {role === 'admin' ? (
-              <Shield className="h-4 w-4 text-[#ff385c]" />
+              <Shield className="h-4 w-4 text-design-primary" />
             ) : (
               <Eye className="h-4 w-4" />
             )}
-            <SidebarTooltip>{role === 'admin' ? 'Admin' : 'Viewer'}</SidebarTooltip>
+            <SidebarTooltip>{roleLabel}</SidebarTooltip>
+          </div>
+
+          <div className="group relative">
+            <LanguageToggle className="h-11 w-11 rounded-airbnb p-0" />
+            <SidebarTooltip>{t('common.language')}</SidebarTooltip>
           </div>
 
           {/* Theme */}
           <div className="group relative">
-            <ThemeToggle className="h-11 w-11 rounded-airbnb hover:bg-[#f2f2f2] dark:hover:bg-[#2a2a2a]" />
-            <SidebarTooltip>Theme</SidebarTooltip>
+            <ThemeToggle className="h-11 w-11 rounded-airbnb" />
+            <SidebarTooltip>{t('common.theme')}</SidebarTooltip>
           </div>
 
           {/* Logout */}
           <button
             onClick={() => void handleLogout()}
-            aria-label="Logout"
-            className="group relative flex h-11 w-11 items-center justify-center rounded-airbnb text-sm font-medium text-[#6a6a6a] outline-none transition-colors hover:bg-[#f2f2f2] hover:text-[#ff385c] focus-visible:ring-2 focus-visible:ring-[#ff385c] focus-visible:ring-offset-2 dark:text-[#a3a3a3] dark:hover:bg-[#2a2a2a] dark:focus-visible:ring-offset-[#1c1c1e]"
+            aria-label={t('common.logout')}
+            className="group relative flex h-11 w-11 items-center justify-center rounded-airbnb text-sm font-medium text-design-secondary outline-none transition-colors hover:bg-design-muted hover:text-design-primary focus-visible:ring-2 focus-visible:ring-design-primary focus-visible:ring-offset-2 focus-visible:ring-offset-design-card"
           >
             <LogOut className="h-4 w-4 flex-shrink-0" />
-            <SidebarTooltip>Logout</SidebarTooltip>
+            <SidebarTooltip>{t('common.logout')}</SidebarTooltip>
           </button>
         </div>
       </aside>
 
       {/* ── Mobile Top Bar ──────────────────────────────────── */}
       <header
-        className="lg:hidden sticky top-0 z-40 bg-white dark:bg-[#1c1c1e] border-b border-[#f2f2f2] dark:border-[#2e2e2e]"
-        style={{ boxShadow: 'rgba(0,0,0,0.04) 0px 2px 8px' }}
+        className="sticky top-0 z-40 border-b border-design-border-soft bg-design-card shadow-[var(--design-shadow-mobile)] lg:hidden"
       >
         <div className="flex items-center justify-between h-14 px-4">
           <Link
             href="/"
-            className="text-lg font-bold tracking-tight"
-            style={{ color: '#ff385c' }}
+            className="text-lg font-bold tracking-tight text-design-primary"
           >
             Chiateam
           </Link>
 
           <div className="flex items-center gap-1.5">
-            <ThemeToggle className="w-9 h-9 rounded-full bg-[#f2f2f2] dark:bg-[#2a2a2a]" />
+            <LanguageToggle className="h-9 rounded-full bg-design-muted px-2" />
+            <ThemeToggle className="h-9 w-9 rounded-full bg-design-muted" />
 
             <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
               <SheetTrigger asChild>
                 <Button
                   variant="outline"
                   size="sm"
-                  className="border-[#e0e0e0] dark:border-[#2e2e2e] dark:bg-[#2a2a2a] dark:text-[#f5f5f5] rounded-airbnb w-9 h-9 p-0"
+                  className="h-9 w-9 rounded-airbnb p-0"
                 >
                   <Menu className="w-5 h-5" />
                 </Button>
@@ -167,30 +173,30 @@ export function Navigation() {
 
               <SheetContent
                 side="right"
-                className="w-[280px] bg-white dark:bg-[#1c1c1e] border-[#f2f2f2] dark:border-[#2e2e2e] p-0"
+                className="w-[280px] border-design-border-soft bg-design-card p-0"
               >
                 <div className="flex flex-col h-full">
-                  <SheetHeader className="px-5 pt-5 pb-4 border-b border-[#f2f2f2] dark:border-[#2e2e2e]">
-                    <SheetTitle className="text-[#222222] dark:text-[#f5f5f5] font-bold text-left">
-                      Menu
+                  <SheetHeader className="border-b border-design-border-soft px-5 pb-4 pt-5">
+                    <SheetTitle className="text-left font-bold text-design-text">
+                      {t('common.menu')}
                     </SheetTitle>
                   </SheetHeader>
 
                   <div className="flex flex-col flex-1 px-3 py-4 gap-4 overflow-y-auto">
                     {/* Role badge */}
-                    <div className="flex items-center gap-2 px-3 py-2.5 bg-[#f2f2f2] dark:bg-[#2a2a2a] rounded-airbnb">
+                    <div className="flex items-center gap-2 rounded-airbnb bg-design-muted px-3 py-2.5">
                       {role === 'admin' ? (
                         <>
-                          <Shield className="w-4 h-4 text-[#ff385c]" />
-                          <span className="text-sm font-medium text-[#222222] dark:text-[#f5f5f5]">
-                            Admin
+                          <Shield className="h-4 w-4 text-design-primary" />
+                          <span className="text-sm font-medium text-design-text">
+                            {t('common.admin')}
                           </span>
                         </>
                       ) : (
                         <>
-                          <Eye className="w-4 h-4 text-[#6a6a6a]" />
-                          <span className="text-sm font-medium text-[#222222] dark:text-[#f5f5f5]">
-                            Viewer
+                          <Eye className="h-4 w-4 text-design-secondary" />
+                          <span className="text-sm font-medium text-design-text">
+                            {t('common.viewer')}
                           </span>
                         </>
                       )}
@@ -209,12 +215,12 @@ export function Navigation() {
                             className={cn(
                               'flex items-center gap-3 px-3 py-3 rounded-airbnb text-base font-medium transition-colors',
                               isActive
-                                ? 'bg-[#fff0f2] dark:bg-[#3a1020] text-[#ff385c]'
-                                : 'text-[#6a6a6a] dark:text-[#a3a3a3] hover:bg-[#f2f2f2] dark:hover:bg-[#2a2a2a] hover:text-[#222222] dark:hover:text-white'
+                                ? 'bg-design-active text-design-primary-strong'
+                                : 'text-design-secondary hover:bg-design-muted hover:text-design-text'
                             )}
                           >
                             <Icon className="w-5 h-5" />
-                            {link.label}
+                            {t(link.labelKey)}
                           </Link>
                         );
                       })}
@@ -222,16 +228,16 @@ export function Navigation() {
                   </div>
 
                   {/* Logout */}
-                  <div className="px-3 pb-4 border-t border-[#f2f2f2] dark:border-[#2e2e2e] pt-3">
+                  <div className="border-t border-design-border-soft px-3 pb-4 pt-3">
                     <button
                       onClick={() => {
                         void handleLogout();
                         setMobileOpen(false);
                       }}
-                      className="w-full flex items-center gap-3 px-3 py-3 rounded-airbnb text-base font-medium text-[#6a6a6a] dark:text-[#a3a3a3] hover:bg-[#f2f2f2] dark:hover:bg-[#2a2a2a] hover:text-[#ff385c] transition-colors"
+                      className="flex w-full items-center gap-3 rounded-airbnb px-3 py-3 text-base font-medium text-design-secondary transition-colors hover:bg-design-muted hover:text-design-primary"
                     >
                       <LogOut className="w-5 h-5" />
-                      Logout
+                      {t('common.logout')}
                     </button>
                   </div>
                 </div>

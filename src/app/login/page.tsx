@@ -1,11 +1,14 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/auth-context';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { LanguageToggle } from '@/components/language-toggle';
+import { useI18n } from '@/contexts/i18n-context';
 import { Lock, Eye, Shield } from 'lucide-react';
 
 export default function LoginPage() {
@@ -14,6 +17,7 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const { login } = useAuth();
+  const { t } = useI18n();
   const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -21,7 +25,7 @@ export default function LoginPage() {
     setError('');
 
     if (!password) {
-      setError('Please enter a password');
+      setError(t('login.required'));
       return;
     }
 
@@ -32,44 +36,39 @@ export default function LoginPage() {
     if (success) {
       router.push('/');
     } else {
-      setError('Invalid password. Please try again.');
+      setError(t('login.invalid'));
       setPassword('');
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#f5f5f5] dark:bg-[#111111] px-4">
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-design-page px-4 text-design-text">
       {/* Subtle background pattern */}
       <div
-        className="absolute inset-0 opacity-[0.03] dark:opacity-[0.05]"
+        className="absolute inset-0 opacity-[0.035] dark:opacity-[0.06]"
         style={{
-          backgroundImage: `radial-gradient(circle at 1px 1px, #222 1px, transparent 0)`,
+          backgroundImage:
+            'linear-gradient(var(--design-border-soft) 1px, transparent 1px), linear-gradient(90deg, var(--design-border-soft) 1px, transparent 1px)',
           backgroundSize: '32px 32px',
         }}
       />
 
       <div className="relative w-full max-w-sm">
+        <div className="mb-3 flex justify-end">
+          <LanguageToggle className="rounded-full bg-design-card shadow-design-card" />
+        </div>
         {/* Card */}
-        <div
-          className="bg-white dark:bg-[#1c1c1e] rounded-large p-8 w-full"
-          style={{
-            boxShadow:
-              'rgba(0,0,0,0.02) 0px 0px 0px 1px, rgba(0,0,0,0.04) 0px 2px 6px, rgba(0,0,0,0.1) 0px 16px 32px',
-          }}
-        >
+        <div className="w-full rounded-large border border-design-border-soft bg-design-card p-8 shadow-design-card">
           {/* Logo zone */}
-          <div className="flex flex-col items-center mb-8">
-            <div
-              className="w-16 h-16 rounded-full flex items-center justify-center mb-4"
-              style={{ backgroundColor: '#fff0f2' }}
-            >
-              <span className="text-3xl">⚽</span>
+          <div className="mb-8 flex flex-col items-center">
+            <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-design-active text-design-primary-strong">
+              <Shield className="h-7 w-7" />
             </div>
-            <h1 className="text-2xl font-bold text-[#222222] dark:text-[#f5f5f5] tracking-tight">
+            <h1 className="text-2xl font-bold tracking-tight text-design-text">
               Chiateam Admin
             </h1>
-            <p className="text-sm text-[#6a6a6a] dark:text-[#a3a3a3] mt-1.5 text-center">
-              Enter your password to continue
+            <p className="mt-1.5 text-center text-sm text-design-secondary">
+              {t('login.subtitle')}
             </p>
           </div>
 
@@ -78,34 +77,37 @@ export default function LoginPage() {
             <div className="space-y-2">
               <Label
                 htmlFor="password"
-                className="text-sm font-medium text-[#222222] dark:text-[#f5f5f5]"
+                className="text-sm font-medium text-design-text"
               >
-                Password
+                {t('login.password')}
               </Label>
               <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#c1c1c1] dark:text-[#5a5a5a]" />
+                <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-design-secondary" />
                 <Input
                   id="password"
                   type={showPassword ? 'text' : 'password'}
-                  placeholder="Enter password"
+                  placeholder={t('login.placeholder')}
                   value={password}
                   onChange={e => setPassword(e.target.value)}
                   autoFocus
-                  className="pl-10 pr-10 h-11 rounded-airbnb border-[#c1c1c1] dark:border-[#2e2e2e] dark:bg-[#111111] dark:text-[#f5f5f5] focus:border-[#ff385c] focus:ring-1 focus:ring-[#ff385c] transition-colors"
+                  className="h-11 pl-10 pr-10"
                 />
                 <button
                   type="button"
+                  aria-label={
+                    showPassword ? t('login.hidePassword') : t('login.showPassword')
+                  }
                   onClick={() => setShowPassword(v => !v)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[#c1c1c1] hover:text-[#6a6a6a] dark:text-[#5a5a5a] dark:hover:text-[#a3a3a3] transition-colors"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-design-secondary transition-colors hover:text-design-text"
                 >
-                  <Eye className="w-4 h-4" />
+                  <Eye className="h-4 w-4" />
                 </button>
               </div>
             </div>
 
             {/* Error */}
             {error && (
-              <div className="text-sm text-[#c13515] dark:text-[#ff6b6b] bg-red-50 dark:bg-[#3a1010] p-3 rounded-airbnb border border-red-100 dark:border-[#5a1010] animate-[shake_0.3s_ease-in-out]">
+              <div className="animate-[shake_0.3s_ease-in-out] rounded-airbnb border border-[#ffd1d8] bg-design-active p-3 text-sm font-medium text-design-error dark:border-[#5a1a27]">
                 {error}
               </div>
             )}
@@ -113,34 +115,45 @@ export default function LoginPage() {
             <Button
               type="submit"
               disabled={loading}
-              className="w-full h-11 rounded-airbnb bg-[#222222] hover:bg-[#333333] dark:bg-[#ff385c] dark:hover:bg-[#e00b41] text-white font-medium text-sm transition-colors disabled:opacity-60"
+              className="h-11 w-full"
             >
               {loading ? (
                 <span className="flex items-center gap-2">
                   <span
                     className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"
                   />
-                  Signing in…
+                  {t('login.signingIn')}
                 </span>
               ) : (
-                'Sign In'
+                t('login.signIn')
               )}
             </Button>
           </form>
 
           {/* Hint */}
-          <div className="mt-6 pt-5 border-t border-[#f2f2f2] dark:border-[#2e2e2e]">
-            <p className="text-xs text-[#6a6a6a] dark:text-[#5a5a5a] text-center font-medium mb-2">
-              Access levels
+          <div className="mt-6 border-t border-design-border-soft pt-5">
+            <div className="mb-5 rounded-airbnb bg-design-muted px-3 py-3 text-center">
+              <p className="text-xs font-medium text-design-secondary">
+                {t('predictionKey.loginHint')}
+              </p>
+              <Link
+                href="/world-cup/predict"
+                className="mt-1 inline-flex text-sm font-bold text-design-primary transition-colors hover:text-design-primary-hover"
+              >
+                {t('predictionKey.openFromLogin')}
+              </Link>
+            </div>
+            <p className="mb-2 text-center text-xs font-medium text-design-secondary">
+              {t('login.accessLevels')}
             </p>
-            <div className="flex justify-center gap-4 text-xs text-[#6a6a6a] dark:text-[#5a5a5a]">
+            <div className="flex justify-center gap-4 text-xs text-design-secondary">
               <span className="flex items-center gap-1">
-                <Shield className="w-3 h-3 text-[#ff385c]" />
-                Admin — full access
+                <Shield className="h-3 w-3 text-design-primary" />
+                {t('login.adminAccess')}
               </span>
               <span className="flex items-center gap-1">
-                <Eye className="w-3 h-3" />
-                Viewer — rename only
+                <Eye className="h-3 w-3" />
+                {t('login.viewerAccess')}
               </span>
             </div>
           </div>

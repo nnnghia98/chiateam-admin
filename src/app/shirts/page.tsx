@@ -865,7 +865,7 @@ export default function ShirtsPage() {
       <section className="rounded-airbnb border border-[#e7e7e7] bg-white shadow-airbnb-card dark:border-[#2e2e2e] dark:bg-[#1c1c1e]">
         <div className="grid gap-0 overflow-hidden rounded-airbnb lg:grid-cols-[1fr_320px]">
           <div className="p-5 sm:p-6">
-            <div className="mb-5 inline-flex items-center gap-2 rounded-airbnb border border-[#ffd1d8] bg-[#fff0f2] px-3 py-1.5 text-xs font-bold uppercase tracking-[0.16em] text-[#ff385c] dark:border-[#5a1a27] dark:bg-[#2b1118]">
+            <div className="mb-5 inline-flex items-center gap-2 rounded-airbnb border border-[#ffd1d8] bg-design-active px-3 py-1.5 text-xs font-bold uppercase tracking-[0.16em] text-design-primary-strong dark:border-[#5a1a27]">
               <Shirt className="h-3.5 w-3.5" />
               Shirt order
             </div>

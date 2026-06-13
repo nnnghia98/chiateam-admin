@@ -12,6 +12,19 @@
   }
 }
 
+@keyframes shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(-3px);
+  }
+  75% {
+    transform: translateX(3px);
+  }
+}
+
 .skeleton-shimmer {
   background: linear-gradient(
     90deg,
@@ -57,7 +70,30 @@
 
 @layer base {
   :root {
-    /* ── Airbnb Palette Tokens (Light) ── */
+    /* Design.md tokens (Light) */
+    --design-primary: #ff385c;
+    --design-primary-hover: #e00b41;
+    --design-primary-strong: #b00033;
+    --design-text-primary: #222222;
+    --design-text-secondary: #6a6a6a;
+    --design-text-disabled: rgba(0, 0, 0, 0.24);
+    --design-bg-page: #f5f5f5;
+    --design-bg-card: #ffffff;
+    --design-bg-muted: #f2f2f2;
+    --design-border: #c1c1c1;
+    --design-border-soft: #e7e7e7;
+    --design-active: #fff0f2;
+    --design-error: #c13515;
+    --design-legal: #428bff;
+    --design-shadow-card: rgba(0, 0, 0, 0.02) 0px 0px 0px 1px,
+      rgba(0, 0, 0, 0.04) 0px 2px 6px,
+      rgba(0, 0, 0, 0.1) 0px 4px 8px;
+    --design-shadow-hover: rgba(0, 0, 0, 0.08) 0px 4px 12px;
+    --design-shadow-mobile: rgba(0, 0, 0, 0.04) 0px 2px 8px;
+    --design-focus-ring: rgb(255, 255, 255) 0px 0px 0px 4px,
+      rgba(0, 0, 0, 0.2) 0px 0px 0px 6px;
+
+    /* Legacy palette aliases */
     --palette-brand: #ff385c;
     --palette-brand-dark: #e00b41;
     --palette-text-primary: #222222;
@@ -92,7 +128,25 @@
   }
 
   .dark {
-    /* ── Airbnb Palette Tokens (Dark) ── */
+    /* Design.md tokens (Dark) */
+    --design-primary: #ff385c;
+    --design-primary-hover: #e00b41;
+    --design-primary-strong: #ff385c;
+    --design-text-primary: #f5f5f5;
+    --design-text-secondary: #a3a3a3;
+    --design-text-disabled: rgba(255, 255, 255, 0.24);
+    --design-bg-page: #111111;
+    --design-bg-card: #1c1c1e;
+    --design-bg-muted: #2a2a2a;
+    --design-border: #2e2e2e;
+    --design-border-soft: #2e2e2e;
+    --design-active: #3a1020;
+    --design-error: #ff6b6b;
+    --design-legal: #5aa3ff;
+    --design-focus-ring: rgba(28, 28, 30, 0.95) 0px 0px 0px 4px,
+      rgba(255, 56, 92, 0.45) 0px 0px 0px 6px;
+
+    /* Legacy palette aliases */
     --palette-brand: #ff385c;
     --palette-brand-dark: #e00b41;
     --palette-text-primary: #f5f5f5;
@@ -151,6 +205,7 @@
       'Helvetica Neue',
       sans-serif;
     color: var(--palette-text-primary);
+    background: var(--design-bg-page);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
@@ -163,5 +218,30 @@
   h6 {
     color: var(--palette-text-primary);
     letter-spacing: -0.02em;
+  }
+}
+
+@layer components {
+  .design-surface {
+    border: 1px solid var(--design-border-soft);
+    border-radius: 20px;
+    background: var(--design-bg-card);
+    color: var(--design-text-primary);
+    box-shadow: var(--design-shadow-card);
+  }
+
+  .design-muted-surface {
+    border-radius: 8px;
+    background: var(--design-bg-muted);
+    color: var(--design-text-primary);
+  }
+
+  .design-section-label {
+    color: var(--design-text-secondary);
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    line-height: 1.33;
+    text-transform: uppercase;
   }
 }

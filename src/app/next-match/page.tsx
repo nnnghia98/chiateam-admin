@@ -8,7 +8,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
-  Banknote,
   RefreshCw,
   Save,
   Trash2,
@@ -110,11 +109,11 @@ function storageToRaw(storage: BotStorage): any {
 
 const TEAM_LABELS: Record<TeamKey, string> = {
   bench: 'Bench',
-  teamA: 'Team A',
-  teamB: 'Team B',
-  team3A: 'Team 3A',
-  team3B: 'Team 3B',
-  team3C: 'Team 3C',
+  teamA: 'Home',
+  teamB: 'Away',
+  team3A: 'Home',
+  team3B: 'Away',
+  team3C: 'External',
 };
 
 // Accent color per team — used only as a thin top-border stripe
@@ -126,6 +125,26 @@ const TEAM_ACCENT: Record<TeamKey, string> = {
   team3B: '#222222',
   team3C: '#f97316',
 };
+
+function resolveTeamKey(
+  value: string | null | undefined,
+  candidates: TeamKey[]
+): TeamKey | null {
+  if (!value) return null;
+  const normalizedValue = value.trim().toLowerCase().replace(/[\s_-]+/g, '');
+
+  const keyMatch = candidates.find(
+    teamKey => teamKey.toLowerCase() === normalizedValue
+  );
+  if (keyMatch) return keyMatch;
+
+  const labelMatches = candidates.filter(
+    teamKey =>
+      TEAM_LABELS[teamKey].toLowerCase().replace(/[\s_-]+/g, '') ===
+      normalizedValue
+  );
+  return labelMatches.length === 1 ? labelMatches[0] : null;
+}
 
 // ─── Player chip ─────────────────────────────────────────────────────────────
 
@@ -190,7 +209,7 @@ function PlayerChip({
           />
           <button
             onClick={commit}
-            className="w-6 h-6 rounded-airbnb flex items-center justify-center text-[#ff385c] hover:bg-[#fff0f2] dark:hover:bg-[#3a1020] transition-colors"
+            className="flex h-6 w-6 items-center justify-center rounded-airbnb text-design-primary hover:bg-design-active transition-colors"
           >
             <Check className="w-3 h-3" />
           </button>
@@ -214,7 +233,7 @@ function PlayerChip({
               {canRemove && (
                 <button
                   onClick={onRemove}
-                  className="w-6 h-6 rounded-airbnb flex items-center justify-center text-[#c1c1c1] hover:text-[#ff385c] hover:bg-[#fff0f2] dark:hover:bg-[#3a1020] transition-colors"
+                  className="flex h-6 w-6 items-center justify-center rounded-airbnb text-design-border transition-colors hover:bg-design-active hover:text-design-primary"
                 >
                   <X className="w-2.5 h-2.5" />
                 </button>
@@ -516,14 +535,41 @@ export default function NextMatchPage() {
 
   const teamKeys: TeamKey[] = ['bench', 'teamA', 'teamB'];
   const team3Keys: TeamKey[] = ['team3A', 'team3B', 'team3C'];
-  const activeTeamKeys = teamMode === '2' ? teamKeys : team3Keys;
-  const activePlayerCount = activeTeamKeys.reduce(
+  const pitchTeamKeys: TeamKey[] =
+    teamMode === '2' ? ['teamA', 'teamB'] : team3Keys;
+  const activePlayerCount = pitchTeamKeys.reduce(
     (sum, teamKey) => sum + storage[teamKey].length,
     0
   );
   const totalCost = storage.tiensan + storage.tiennuoc;
   const costPerPlayer =
     activePlayerCount > 0 ? Math.round(totalCost / activePlayerCount) : 0;
+  const losingTeamKey = resolveTeamKey(storage.teamThua, pitchTeamKeys);
+  const winnerTeamKeys = losingTeamKey
+    ? pitchTeamKeys.filter(teamKey => teamKey !== losingTeamKey)
+    : [];
+  const losingPlayerCount = losingTeamKey
+    ? storage[losingTeamKey].length
+    : 0;
+  const winnerPlayerCount = winnerTeamKeys.reduce(
+    (sum, teamKey) => sum + storage[teamKey].length,
+    0
+  );
+  const waterPerPlayer =
+    activePlayerCount > 0 ? Math.round(storage.tiennuoc / activePlayerCount) : 0;
+  const losingFieldPerPlayer =
+    losingPlayerCount > 0 ? Math.round(storage.tiensan / losingPlayerCount) : 0;
+  const losingCostPerPlayer =
+    losingTeamKey && losingPlayerCount > 0
+      ? losingFieldPerPlayer + waterPerPlayer
+      : 0;
+  const winnerCostPerPlayer =
+    losingTeamKey && winnerPlayerCount > 0 ? waterPerPlayer : 0;
+  const hasCompleteMoneySplit = Boolean(
+    losingTeamKey && losingPlayerCount > 0 && winnerPlayerCount > 0
+  );
+  const winnerTeamLabel =
+    winnerTeamKeys.map(teamKey => TEAM_LABELS[teamKey]).join(' + ') || 'Winner';
 
   return (
     <DragDropProvider onDragEnd={handleDragEnd}>
@@ -547,14 +593,6 @@ export default function NextMatchPage() {
         <section className="rounded-airbnb border border-[#e7e7e7] bg-white shadow-airbnb-card dark:border-[#2e2e2e] dark:bg-[#151515]">
           <div className="flex flex-col gap-4 border-b border-[#f2f2f2] px-5 py-4 dark:border-[#2e2e2e] lg:flex-row lg:items-center lg:justify-between">
             <div className="flex flex-wrap items-center gap-3">
-              <div>
-                <p className="text-xs font-black uppercase tracking-[0.16em] text-[#6a6a6a] dark:text-[#a3a3a3]">
-                  Formation control
-                </p>
-                <h2 className="mt-1 text-lg font-black text-[#222222] dark:text-[#f5f5f5]">
-                  Players & teams
-                </h2>
-              </div>
               <div className="inline-flex rounded-airbnb border border-[#e7e7e7] bg-[#f7f7f7] p-1 dark:border-[#2e2e2e] dark:bg-[#222222]">
                 <button
                   onClick={() => setTeamMode('2')}
@@ -696,14 +734,18 @@ export default function NextMatchPage() {
               </p>
             </div>
             <div className="p-5">
-              <p className="text-[11px] font-black uppercase tracking-[0.16em] text-[#2d6a4f] dark:text-emerald-400">
+              <p className="text-[11px] font-black uppercase tracking-[0.16em] text-design-primary-strong">
                 Total cost
               </p>
               <p className="mt-1 text-3xl font-black text-[#222222] dark:text-[#f5f5f5]">
                 {totalCost.toLocaleString()}₫
               </p>
               <p className="text-xs text-[#6a6a6a] dark:text-[#a3a3a3]">
-                {costPerPlayer.toLocaleString()}₫ per player
+                {losingTeamKey
+                  ? hasCompleteMoneySplit
+                    ? `Lose ${losingCostPerPlayer.toLocaleString()}₫ • Win ${winnerCostPerPlayer.toLocaleString()}₫`
+                    : 'Split pending'
+                  : `${costPerPlayer.toLocaleString()}₫ per player`}
               </p>
             </div>
           </div>
@@ -711,19 +753,6 @@ export default function NextMatchPage() {
 
         <section className="grid gap-4 xl:grid-cols-[0.8fr_1.2fr]">
           <div className="rounded-airbnb border border-[#e7e7e7] bg-white p-5 shadow-airbnb-card dark:border-[#2e2e2e] dark:bg-[#1c1c1e]">
-            <div className="mb-5 flex items-center justify-between">
-              <div>
-                <p className="text-xs font-black uppercase tracking-[0.16em] text-[#6a6a6a] dark:text-[#a3a3a3]">
-                  Match ledger
-                </p>
-                <h2 className="mt-1 text-lg font-black text-[#222222] dark:text-[#f5f5f5]">
-                  Financial
-                </h2>
-              </div>
-              <div className="flex h-10 w-10 items-center justify-center rounded-airbnb bg-[#fff0f2] text-[#ff385c] dark:bg-[#3a1020]">
-                <Banknote className="h-5 w-5" />
-              </div>
-            </div>
             <div className="grid grid-cols-1 gap-3">
               {/* Tiền sân */}
               <div className="rounded-airbnb bg-[#f7f7f7] p-4 dark:bg-[#2a2a2a]">
@@ -837,12 +866,94 @@ export default function NextMatchPage() {
 
               {/* Team thua */}
               <div className="rounded-airbnb bg-[#171717] p-4 text-white">
-                <Label className="text-xs font-semibold uppercase tracking-[0.12em] text-white/50">Team Thua</Label>
-                <span className="mt-2 block text-2xl font-black">
-                  {storage.teamThua ?? (
-                    <span className="text-white/35 italic">None</span>
+                <div className="flex items-center justify-between gap-3">
+                  <Label className="text-xs font-semibold uppercase tracking-[0.12em] text-white/50">Team Thua</Label>
+                  {losingTeamKey && (
+                    <span className="rounded-badge bg-white/10 px-2 py-1 text-[10px] font-black uppercase tracking-[0.12em] text-white/70">
+                      {TEAM_LABELS[losingTeamKey]}
+                    </span>
                   )}
-                </span>
+                </div>
+                {canEdit ? (
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={() => mutate(s => ({ ...s, teamThua: null }))}
+                      className={`rounded-airbnb px-3 py-2 text-xs font-black transition-colors ${
+                        !losingTeamKey
+                          ? 'bg-white text-[#171717]'
+                          : 'bg-white/10 text-white/65 hover:bg-white/15 hover:text-white'
+                      }`}
+                    >
+                      None
+                    </button>
+                    {pitchTeamKeys.map(teamKey => {
+                      const selected = losingTeamKey === teamKey;
+                      return (
+                        <button
+                          key={teamKey}
+                          type="button"
+                          onClick={() =>
+                            mutate(s => ({ ...s, teamThua: teamKey }))
+                          }
+                          className={`inline-flex items-center gap-2 rounded-airbnb px-3 py-2 text-xs font-black transition-colors ${
+                            selected
+                              ? 'bg-white text-[#171717]'
+                              : 'bg-white/10 text-white/65 hover:bg-white/15 hover:text-white'
+                          }`}
+                        >
+                          {TEAM_LABELS[teamKey]}
+                          <span
+                            className={`rounded-badge px-1.5 py-0.5 text-[10px] ${
+                              selected
+                                ? 'bg-[#171717]/10 text-[#171717]/70'
+                                : 'bg-white/10 text-white/55'
+                            }`}
+                          >
+                            {storage[teamKey].length}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <span className="mt-2 block text-2xl font-black">
+                    {losingTeamKey ? (
+                      TEAM_LABELS[losingTeamKey]
+                    ) : storage.teamThua ? (
+                      storage.teamThua
+                    ) : (
+                      <span className="text-white/35 italic">None</span>
+                    )}
+                  </span>
+                )}
+                {losingTeamKey && (
+                  <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                    <div className="rounded-airbnb bg-white/10 p-3">
+                      <p className="text-[10px] font-black uppercase tracking-[0.14em] text-white/45">
+                        Lose
+                      </p>
+                      <p className="mt-1 text-lg font-black">
+                        {losingCostPerPlayer.toLocaleString()}₫
+                      </p>
+                      <p className="mt-0.5 text-[11px] text-white/45">
+                        {TEAM_LABELS[losingTeamKey]} • {losingPlayerCount}{' '}
+                        players
+                      </p>
+                    </div>
+                    <div className="rounded-airbnb bg-white/10 p-3">
+                      <p className="text-[10px] font-black uppercase tracking-[0.14em] text-white/45">
+                        Win
+                      </p>
+                      <p className="mt-1 text-lg font-black">
+                        {winnerCostPerPlayer.toLocaleString()}₫
+                      </p>
+                      <p className="mt-0.5 text-[11px] text-white/45">
+                        {winnerTeamLabel} • {winnerPlayerCount} players
+                      </p>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>

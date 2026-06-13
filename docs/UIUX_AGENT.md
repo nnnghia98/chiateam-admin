@@ -511,4 +511,4 @@ Before submitting any UI change, verify:
 | `src/contexts/sidebar-context.tsx` | `useSidebar()` → `{ collapsed, toggle }` |
 | `src/lib/api-client.ts` | All API calls |
 | `tailwind.config.js` | Custom tokens: `airbnb-*` colors, `shadow-airbnb-*`, `rounded-airbnb/card/large/badge` |
-| `docs/DESIGN.md` | Full visual design philosophy and token definitions |
+| `DESIGN.md` | Full visual design philosophy and token definitions |

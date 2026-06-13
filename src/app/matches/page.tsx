@@ -175,10 +175,10 @@ export default function MatchesPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-[#222222] dark:text-[#f5f5f5] tracking-tight">
+          <h1 className="text-2xl font-bold tracking-tight text-design-text sm:text-3xl">
             Matches
           </h1>
-          <p className="text-[#6a6a6a] dark:text-[#a3a3a3] mt-1 text-sm">
+          <p className="mt-1 text-sm text-design-secondary">
             {canEdit
               ? 'View and manage match records'
               : 'View match records (read-only)'}
@@ -187,7 +187,7 @@ export default function MatchesPage() {
         {canEdit && !isCreating && !editingMatch && (
           <Button
             onClick={startCreate}
-            className="rounded-airbnb bg-[#222222] dark:bg-[#ff385c] hover:bg-[#333] dark:hover:bg-[#e00b41] text-white w-full sm:w-auto"
+            className="w-full sm:w-auto"
           >
             <Plus className="w-4 h-4 mr-2" />
             Add Match
@@ -197,12 +197,12 @@ export default function MatchesPage() {
 
       {/* Create / Edit form */}
       {canEdit && (isCreating || editingMatch) && (
-        <Card className="dark:bg-[#1c1c1e] dark:border-[#2e2e2e] shadow-airbnb-card">
+        <Card>
           <CardHeader>
-            <CardTitle className="dark:text-[#f5f5f5]">
+            <CardTitle>
               {isCreating ? 'Create New Match' : 'Edit Match'}
             </CardTitle>
-            <CardDescription className="dark:text-[#a3a3a3]">
+            <CardDescription>
               {isCreating
                 ? 'Add a new match record'
                 : `Editing match on ${editingMatch?.match_date}`}
@@ -215,7 +215,7 @@ export default function MatchesPage() {
             >
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div className="space-y-2">
-                  <Label className="dark:text-[#f5f5f5]" htmlFor="match_date">
+                  <Label htmlFor="match_date">
                     Match Date *
                   </Label>
                   <Input
@@ -227,11 +227,10 @@ export default function MatchesPage() {
                     }
                     required
                     disabled={!!editingMatch}
-                    className="rounded-airbnb dark:bg-[#111111] dark:border-[#2e2e2e] dark:text-[#f5f5f5]"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label className="dark:text-[#f5f5f5]" htmlFor="san">
+                  <Label htmlFor="san">
                     Field/Location
                   </Label>
                   <Input
@@ -240,11 +239,10 @@ export default function MatchesPage() {
                     onChange={e =>
                       setFormData({ ...formData, san: e.target.value })
                     }
-                    className="rounded-airbnb dark:bg-[#111111] dark:border-[#2e2e2e] dark:text-[#f5f5f5]"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label className="dark:text-[#f5f5f5]" htmlFor="tiensan">
+                  <Label htmlFor="tiensan">
                     Field Fee (₫)
                   </Label>
                   <Input
@@ -254,11 +252,10 @@ export default function MatchesPage() {
                     onChange={e =>
                       setFormData({ ...formData, tiensan: e.target.value })
                     }
-                    className="rounded-airbnb dark:bg-[#111111] dark:border-[#2e2e2e] dark:text-[#f5f5f5]"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label className="dark:text-[#f5f5f5]" htmlFor="home_score">
+                  <Label htmlFor="home_score">
                     Home Score
                   </Label>
                   <Input
@@ -268,11 +265,10 @@ export default function MatchesPage() {
                     onChange={e =>
                       setFormData({ ...formData, home_score: e.target.value })
                     }
-                    className="rounded-airbnb dark:bg-[#111111] dark:border-[#2e2e2e] dark:text-[#f5f5f5]"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label className="dark:text-[#f5f5f5]" htmlFor="away_score">
+                  <Label htmlFor="away_score">
                     Away Score
                   </Label>
                   <Input
@@ -282,11 +278,10 @@ export default function MatchesPage() {
                     onChange={e =>
                       setFormData({ ...formData, away_score: e.target.value })
                     }
-                    className="rounded-airbnb dark:bg-[#111111] dark:border-[#2e2e2e] dark:text-[#f5f5f5]"
                   />
                 </div>
                 <div className="space-y-2 sm:col-span-2 lg:col-span-1">
-                  <Label className="dark:text-[#f5f5f5]" htmlFor="notes">
+                  <Label htmlFor="notes">
                     Notes
                   </Label>
                   <Input
@@ -295,14 +290,12 @@ export default function MatchesPage() {
                     onChange={e =>
                       setFormData({ ...formData, notes: e.target.value })
                     }
-                    className="rounded-airbnb dark:bg-[#111111] dark:border-[#2e2e2e] dark:text-[#f5f5f5]"
                   />
                 </div>
               </div>
               <div className="flex gap-2">
                 <Button
                   type="submit"
-                  className="rounded-airbnb bg-[#222222] dark:bg-[#ff385c] hover:bg-[#333] dark:hover:bg-[#e00b41] text-white"
                 >
                   {isCreating ? 'Create' : 'Update'}
                 </Button>
@@ -310,7 +303,6 @@ export default function MatchesPage() {
                   type="button"
                   variant="outline"
                   onClick={resetForm}
-                  className="rounded-airbnb dark:border-[#2e2e2e] dark:text-[#f5f5f5] dark:hover:bg-[#2a2a2a]"
                 >
                   <X className="w-4 h-4 mr-2" />
                   Cancel
@@ -323,25 +315,25 @@ export default function MatchesPage() {
 
       {/* ── Mobile: Card list (< md) ────────────────────── */}
       <div className="md:hidden space-y-3">
-        <p className="text-xs font-semibold uppercase tracking-wide text-[#6a6a6a] dark:text-[#a3a3a3]">
+        <p className="design-section-label">
           All Matches ({matches.length})
         </p>
         {matches.length === 0 ? (
-          <div className="bg-white dark:bg-[#1c1c1e] rounded-card shadow-airbnb-card p-8 text-center text-[#6a6a6a] dark:text-[#a3a3a3] text-sm">
+          <div className="design-surface p-8 text-center text-sm text-design-secondary">
             No matches yet
           </div>
         ) : (
           matches.map(match => (
             <div
               key={match.id}
-              className="bg-white dark:bg-[#1c1c1e] rounded-card shadow-airbnb-card p-4"
+              className="design-surface p-4"
             >
               <div className="flex items-start justify-between gap-3">
                 <div className="flex-1 min-w-0 space-y-1">
                   {/* Date + Score */}
                   <div className="flex items-center justify-between gap-2">
                     <span
-                      className="font-semibold text-[#222222] dark:text-[#f5f5f5] text-sm"
+                      className="text-sm font-semibold text-design-text"
                       suppressHydrationWarning
                     >
                       📅{' '}
@@ -349,32 +341,32 @@ export default function MatchesPage() {
                     </span>
                     {match.home_score !== null &&
                     match.away_score !== null ? (
-                      <span className="font-bold text-[#ff385c] text-sm">
+                      <span className="text-sm font-bold text-design-primary">
                         {match.home_score} – {match.away_score}
                       </span>
                     ) : (
-                      <span className="text-xs text-[#c1c1c1] dark:text-[#5a5a5a]">
+                      <span className="text-xs text-design-secondary">
                         No score
                       </span>
                     )}
                   </div>
                   {/* Location */}
                   {match.san && (
-                    <p className="text-xs text-[#6a6a6a] dark:text-[#a3a3a3] flex items-center gap-1">
+                    <p className="flex items-center gap-1 text-xs text-design-secondary">
                       <MapPin className="w-3 h-3 flex-shrink-0" />
                       {match.san}
                     </p>
                   )}
                   {/* Fee */}
                   {match.tiensan && (
-                    <p className="text-xs text-[#6a6a6a] dark:text-[#a3a3a3] flex items-center gap-1">
+                    <p className="flex items-center gap-1 text-xs text-design-secondary">
                       <DollarSign className="w-3 h-3 flex-shrink-0" />
                       {match.tiensan.toLocaleString()}₫
                     </p>
                   )}
                   {/* Notes */}
                   {match.notes && (
-                    <p className="text-xs text-[#c1c1c1] dark:text-[#5a5a5a] truncate">
+                    <p className="truncate text-xs text-design-secondary">
                       {match.notes}
                     </p>
                   )}
@@ -384,16 +376,18 @@ export default function MatchesPage() {
                     <Button
                       variant="outline"
                       size="sm"
+                      aria-label={`Edit match ${match.match_date}`}
                       onClick={() => startEdit(match)}
-                      className="rounded-airbnb dark:border-[#2e2e2e] dark:text-[#f5f5f5] dark:hover:bg-[#2a2a2a] w-8 h-8 p-0"
+                      className="h-8 w-8 p-0"
                     >
                       <Pencil className="w-3.5 h-3.5" />
                     </Button>
                     <Button
                       variant="destructive"
                       size="sm"
+                      aria-label={`Delete match ${match.match_date}`}
                       onClick={() => handleDelete(match.match_date)}
-                      className="rounded-airbnb w-8 h-8 p-0"
+                      className="h-8 w-8 p-0"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </Button>
@@ -406,23 +400,23 @@ export default function MatchesPage() {
       </div>
 
       {/* ── Desktop: Data table (≥ md) ──────────────────── */}
-      <Card className="hidden md:block dark:bg-[#1c1c1e] dark:border-[#2e2e2e] shadow-airbnb-card">
+      <Card className="hidden md:block">
         <CardHeader className="pb-3">
-          <CardTitle className="text-base font-semibold text-[#222222] dark:text-[#f5f5f5]">
+          <CardTitle className="text-base font-semibold">
             All Matches ({matches.length})
           </CardTitle>
         </CardHeader>
         <CardContent>
           <Table>
             <TableHeader>
-              <TableRow className="dark:border-[#2e2e2e]">
-                <TableHead className="dark:text-[#a3a3a3]">Date</TableHead>
-                <TableHead className="dark:text-[#a3a3a3]">Location</TableHead>
-                <TableHead className="dark:text-[#a3a3a3]">Score</TableHead>
-                <TableHead className="dark:text-[#a3a3a3]">Field Fee</TableHead>
-                <TableHead className="dark:text-[#a3a3a3]">Notes</TableHead>
+              <TableRow>
+                <TableHead>Date</TableHead>
+                <TableHead>Location</TableHead>
+                <TableHead>Score</TableHead>
+                <TableHead>Field Fee</TableHead>
+                <TableHead>Notes</TableHead>
                 {canEdit && (
-                  <TableHead className="text-right dark:text-[#a3a3a3]">
+                  <TableHead className="text-right">
                     Actions
                   </TableHead>
                 )}
@@ -430,30 +424,27 @@ export default function MatchesPage() {
             </TableHeader>
             <TableBody>
               {matches.map(match => (
-                <TableRow
-                  key={match.id}
-                  className="dark:border-[#2e2e2e]"
-                >
+                <TableRow key={match.id}>
                   <TableCell
-                    className="font-medium text-[#222222] dark:text-[#f5f5f5]"
+                    className="font-medium"
                     suppressHydrationWarning
                   >
                     {new Date(match.match_date).toLocaleDateString()}
                   </TableCell>
-                  <TableCell className="text-[#6a6a6a] dark:text-[#a3a3a3]">
+                  <TableCell className="text-design-secondary">
                     {match.san || '—'}
                   </TableCell>
-                  <TableCell className="font-medium text-[#222222] dark:text-[#f5f5f5]">
+                  <TableCell className="font-medium">
                     {match.home_score !== null && match.away_score !== null
                       ? `${match.home_score} – ${match.away_score}`
                       : '—'}
                   </TableCell>
-                  <TableCell className="text-[#6a6a6a] dark:text-[#a3a3a3]">
+                  <TableCell className="text-design-secondary">
                     {match.tiensan
                       ? `${match.tiensan.toLocaleString()}₫`
                       : '—'}
                   </TableCell>
-                  <TableCell className="max-w-xs truncate text-[#6a6a6a] dark:text-[#a3a3a3]">
+                  <TableCell className="max-w-xs truncate text-design-secondary">
                     {match.notes || '—'}
                   </TableCell>
                   {canEdit && (
@@ -462,16 +453,16 @@ export default function MatchesPage() {
                         <Button
                           variant="outline"
                           size="sm"
+                          aria-label={`Edit match ${match.match_date}`}
                           onClick={() => startEdit(match)}
-                          className="rounded-airbnb dark:border-[#2e2e2e] dark:text-[#f5f5f5] dark:hover:bg-[#2a2a2a]"
                         >
                           <Pencil className="w-4 h-4" />
                         </Button>
                         <Button
                           variant="destructive"
                           size="sm"
+                          aria-label={`Delete match ${match.match_date}`}
                           onClick={() => handleDelete(match.match_date)}
-                          className="rounded-airbnb"
                         >
                           <Trash2 className="w-4 h-4" />
                         </Button>

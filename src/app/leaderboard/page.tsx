@@ -44,18 +44,18 @@ function PodiumCard({
     <div className="flex flex-col items-center gap-2">
       <div className="text-2xl">{RANK_EMOJI[rank]}</div>
       <div
-        className={`bg-white dark:bg-[#1c1c1e] rounded-card shadow-airbnb-card flex flex-col items-center justify-center p-3 w-24 sm:w-28 ${height}`}
+        className={`flex w-24 flex-col items-center justify-center rounded-card border border-design-border-soft bg-design-card p-3 shadow-design-card sm:w-28 ${height}`}
         style={{
-          borderTop: `3px solid ${rank === 0 ? '#fbbf24' : rank === 1 ? '#94a3b8' : '#f97316'}`,
+          borderTop: `3px solid ${rank === 0 ? '#ff385c' : rank === 1 ? '#222222' : '#c1c1c1'}`,
         }}
       >
-        <p className="font-bold text-[#222222] dark:text-[#f5f5f5] text-xs text-center leading-tight truncate w-full text-center">
+        <p className="w-full truncate text-center text-xs font-bold leading-tight text-design-text">
           {entry.player?.name || `#${entry.player?.number}`}
         </p>
-        <p className="text-[#ff385c] font-bold text-sm mt-1">
+        <p className="mt-1 text-sm font-bold text-design-primary">
           {(entry.stats.winrate * 100).toFixed(0)}%
         </p>
-        <p className="text-[10px] text-[#6a6a6a] dark:text-[#a3a3a3]">
+        <p className="text-[10px] text-design-secondary">
           {entry.stats.goal}G · {entry.stats.assist}A
         </p>
       </div>
@@ -171,10 +171,10 @@ export default function LeaderboardPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl sm:text-3xl font-bold text-[#222222] dark:text-[#f5f5f5] tracking-tight">
+        <h1 className="text-2xl font-bold tracking-tight text-design-text sm:text-3xl">
           Leaderboard
         </h1>
-        <p className="text-[#6a6a6a] dark:text-[#a3a3a3] mt-1 text-sm">
+        <p className="mt-1 text-sm text-design-secondary">
           {canEdit
             ? 'View and modify player statistics'
             : 'View player statistics (read-only)'}
@@ -183,7 +183,7 @@ export default function LeaderboardPage() {
 
       {/* Podium (always visible) */}
       {top3.length >= 2 && (
-        <Card className="dark:bg-[#1c1c1e] dark:border-[#2e2e2e] shadow-airbnb-card">
+        <Card>
           <CardContent className="pt-6 pb-4">
             <div className="flex items-end justify-center gap-3 sm:gap-6">
               {/* 2nd place (left) */}
@@ -205,12 +205,12 @@ export default function LeaderboardPage() {
 
       {/* Edit form */}
       {editingEntry && canEdit && (
-        <Card className="dark:bg-[#1c1c1e] dark:border-[#2e2e2e] shadow-airbnb-card">
+        <Card>
           <CardHeader>
-            <CardTitle className="dark:text-[#f5f5f5]">
+            <CardTitle>
               Edit Player Stats
             </CardTitle>
-            <CardDescription className="dark:text-[#a3a3a3]">
+            <CardDescription>
               Editing stats for player #{editingEntry.player.number}
               {editingEntry.player && ` — ${editingEntry.player.name}`}
             </CardDescription>
@@ -227,10 +227,7 @@ export default function LeaderboardPage() {
                   { id: 'total_draw', label: 'Draws' },
                 ].map(field => (
                   <div key={field.id} className="space-y-2">
-                    <Label
-                      htmlFor={field.id}
-                      className="dark:text-[#f5f5f5]"
-                    >
+                    <Label htmlFor={field.id}>
                       {field.label}
                     </Label>
                     <Input
@@ -243,7 +240,6 @@ export default function LeaderboardPage() {
                           [field.id]: e.target.value,
                         })
                       }
-                      className="rounded-airbnb dark:bg-[#111111] dark:border-[#2e2e2e] dark:text-[#f5f5f5]"
                     />
                   </div>
                 ))}
@@ -251,7 +247,6 @@ export default function LeaderboardPage() {
               <div className="flex gap-2">
                 <Button
                   type="submit"
-                  className="rounded-airbnb bg-[#222222] dark:bg-[#ff385c] hover:bg-[#333] dark:hover:bg-[#e00b41] text-white"
                 >
                   Update
                 </Button>
@@ -259,7 +254,6 @@ export default function LeaderboardPage() {
                   type="button"
                   variant="outline"
                   onClick={cancelEdit}
-                  className="rounded-airbnb dark:border-[#2e2e2e] dark:text-[#f5f5f5] dark:hover:bg-[#2a2a2a]"
                 >
                   <X className="w-4 h-4 mr-2" />
                   Cancel
@@ -272,21 +266,21 @@ export default function LeaderboardPage() {
 
       {/* ── Mobile: Card list (< md) ────────────────────── */}
       <div className="md:hidden space-y-3">
-        <p className="text-xs font-semibold uppercase tracking-wide text-[#6a6a6a] dark:text-[#a3a3a3]">
+        <p className="design-section-label">
           Full Rankings ({leaderboard.length} players)
         </p>
         {leaderboard.map((entry, index) => (
           <div
             key={entry.player.number}
-            className="bg-white dark:bg-[#1c1c1e] rounded-card shadow-airbnb-card p-4"
+            className="design-surface p-4"
           >
             <div className="flex items-center gap-3">
               {/* Rank badge */}
-              <div className="flex-shrink-0 w-9 h-9 rounded-full bg-[#f2f2f2] dark:bg-[#2a2a2a] flex items-center justify-center">
+              <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-design-muted">
                 {index < 3 ? (
                   <span className="text-lg">{RANK_EMOJI[index]}</span>
                 ) : (
-                  <span className="text-xs font-bold text-[#6a6a6a] dark:text-[#a3a3a3]">
+                  <span className="text-xs font-bold text-design-secondary">
                     #{index + 1}
                   </span>
                 )}
@@ -295,23 +289,23 @@ export default function LeaderboardPage() {
               {/* Player info */}
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between gap-2">
-                  <span className="font-semibold text-[#222222] dark:text-[#f5f5f5] text-sm truncate">
+                  <span className="truncate text-sm font-semibold text-design-text">
                     {entry.player?.name || `#${entry.player?.number}`}
                   </span>
-                  <span className="font-bold text-[#ff385c] text-sm flex-shrink-0">
+                  <span className="flex-shrink-0 text-sm font-bold text-design-primary">
                     {(entry.stats.winrate * 100).toFixed(1)}%
                   </span>
                 </div>
-                <div className="flex items-center gap-3 mt-0.5 text-xs text-[#6a6a6a] dark:text-[#a3a3a3]">
+                <div className="mt-0.5 flex items-center gap-3 text-xs text-design-secondary">
                   <span>{entry.stats.goal}G</span>
                   <span>{entry.stats.assist}A</span>
                   <span>{entry.stats.total_match} matches</span>
                   <span>
-                    <span className="text-green-600 dark:text-green-400">
+                    <span className="text-design-text">
                       {entry.stats.total_win}W
                     </span>
                     /
-                    <span className="text-red-600 dark:text-red-400">
+                    <span className="text-design-error">
                       {entry.stats.total_lose}L
                     </span>
                     /
@@ -325,8 +319,9 @@ export default function LeaderboardPage() {
                 <Button
                   variant="outline"
                   size="sm"
+                  aria-label={`Edit ${entry.player?.name || `#${entry.player?.number}`}`}
                   onClick={() => startEdit(entry)}
-                  className="rounded-airbnb dark:border-[#2e2e2e] dark:text-[#f5f5f5] dark:hover:bg-[#2a2a2a] w-8 h-8 p-0 flex-shrink-0"
+                  className="h-8 w-8 flex-shrink-0 p-0"
                 >
                   <Pencil className="w-3.5 h-3.5" />
                 </Button>
@@ -337,37 +332,37 @@ export default function LeaderboardPage() {
       </div>
 
       {/* ── Desktop: Data table (≥ md) ──────────────────── */}
-      <Card className="hidden md:block dark:bg-[#1c1c1e] dark:border-[#2e2e2e] shadow-airbnb-card">
+      <Card className="hidden md:block">
         <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-base font-semibold text-[#222222] dark:text-[#f5f5f5]">
-            <Trophy className="w-5 h-5" style={{ color: '#ff385c' }} />
+          <CardTitle className="flex items-center gap-2 text-base font-semibold">
+            <Trophy className="h-5 w-5 text-design-primary" />
             Leaderboard ({leaderboard.length} players)
           </CardTitle>
         </CardHeader>
         <CardContent>
           <Table>
             <TableHeader>
-              <TableRow className="dark:border-[#2e2e2e]">
-                <TableHead className="dark:text-[#a3a3a3]">Rank</TableHead>
-                <TableHead className="dark:text-[#a3a3a3]">Player #</TableHead>
-                <TableHead className="dark:text-[#a3a3a3]">Name</TableHead>
-                <TableHead className="text-center dark:text-[#a3a3a3]">
+              <TableRow>
+                <TableHead>Rank</TableHead>
+                <TableHead>Player #</TableHead>
+                <TableHead>Name</TableHead>
+                <TableHead className="text-center">
                   Win Rate
                 </TableHead>
-                <TableHead className="text-center dark:text-[#a3a3a3]">
+                <TableHead className="text-center">
                   Goals
                 </TableHead>
-                <TableHead className="text-center dark:text-[#a3a3a3]">
+                <TableHead className="text-center">
                   Assists
                 </TableHead>
-                <TableHead className="text-center dark:text-[#a3a3a3]">
+                <TableHead className="text-center">
                   Matches
                 </TableHead>
-                <TableHead className="text-center dark:text-[#a3a3a3]">
+                <TableHead className="text-center">
                   W/L/D
                 </TableHead>
                 {canEdit && (
-                  <TableHead className="text-right dark:text-[#a3a3a3]">
+                  <TableHead className="text-right">
                     Actions
                   </TableHead>
                 )}
@@ -375,47 +370,44 @@ export default function LeaderboardPage() {
             </TableHeader>
             <TableBody>
               {leaderboard.map((entry, index) => (
-                <TableRow
-                  key={entry.player.number}
-                  className="dark:border-[#2e2e2e]"
-                >
-                  <TableCell className="font-bold text-[#222222] dark:text-[#f5f5f5]">
+                <TableRow key={entry.player.number}>
+                  <TableCell className="font-bold">
                     {index < 3 ? (
                       RANK_EMOJI[index]
                     ) : (
-                      <span className="text-[#6a6a6a] dark:text-[#a3a3a3]">
+                      <span className="text-design-secondary">
                         #{index + 1}
                       </span>
                     )}
                   </TableCell>
-                  <TableCell className="font-medium text-[#222222] dark:text-[#f5f5f5]">
+                  <TableCell className="font-medium">
                     #{entry.player.number}
                   </TableCell>
-                  <TableCell className="text-[#222222] dark:text-[#f5f5f5]">
+                  <TableCell>
                     {entry.player?.name || '—'}
                   </TableCell>
-                  <TableCell className="text-center font-semibold text-[#ff385c]">
+                  <TableCell className="text-center font-semibold text-design-primary">
                     {(entry.stats.winrate * 100).toFixed(1)}%
                   </TableCell>
-                  <TableCell className="text-center text-[#222222] dark:text-[#f5f5f5]">
+                  <TableCell className="text-center">
                     {entry.stats.goal}
                   </TableCell>
-                  <TableCell className="text-center text-[#222222] dark:text-[#f5f5f5]">
+                  <TableCell className="text-center">
                     {entry.stats.assist}
                   </TableCell>
-                  <TableCell className="text-center text-[#222222] dark:text-[#f5f5f5]">
+                  <TableCell className="text-center">
                     {entry.stats.total_match}
                   </TableCell>
                   <TableCell className="text-center text-sm">
-                    <span className="text-green-600 dark:text-green-400">
+                    <span className="text-design-text">
                       {entry.stats.total_win}
                     </span>
                     /
-                    <span className="text-red-600 dark:text-red-400">
+                    <span className="text-design-error">
                       {entry.stats.total_lose}
                     </span>
                     /
-                    <span className="text-[#6a6a6a] dark:text-[#a3a3a3]">
+                    <span className="text-design-secondary">
                       {entry.stats.total_draw}
                     </span>
                   </TableCell>
@@ -424,8 +416,8 @@ export default function LeaderboardPage() {
                       <Button
                         variant="outline"
                         size="sm"
+                        aria-label={`Edit ${entry.player?.name || `#${entry.player?.number}`}`}
                         onClick={() => startEdit(entry)}
-                        className="rounded-airbnb dark:border-[#2e2e2e] dark:text-[#f5f5f5] dark:hover:bg-[#2a2a2a]"
                       >
                         <Pencil className="w-4 h-4" />
                       </Button>

@@ -25,7 +25,7 @@ export function ThemeToggle({ className }: { className?: string }) {
     return (
       <button
         className={cn(
-          'flex items-center justify-center text-[#6a6a6a] transition-colors',
+          'flex items-center justify-center text-design-secondary transition-colors',
           className
         )}
         aria-label="Toggle dark mode"
@@ -39,7 +39,7 @@ export function ThemeToggle({ className }: { className?: string }) {
     <button
       onClick={toggle}
       className={cn(
-        'flex items-center justify-center text-[#6a6a6a] dark:text-[#a3a3a3] hover:text-[#222222] dark:hover:text-white transition-colors',
+        'flex items-center justify-center text-design-secondary transition-colors hover:bg-design-muted hover:text-design-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-design-primary focus-visible:ring-offset-2 focus-visible:ring-offset-design-page',
         className
       )}
       aria-label="Toggle dark mode"

@@ -5,20 +5,22 @@ import { cva, type VariantProps } from 'class-variance-authority';
 import { cn } from '@/lib/utils';
 
 const buttonVariants = cva(
-  'inline-flex items-center justify-center whitespace-nowrap text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50',
+  'inline-flex items-center justify-center whitespace-nowrap rounded-airbnb text-sm font-medium ring-offset-background transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-design-primary focus-visible:ring-offset-2 focus-visible:ring-offset-design-page active:scale-95 disabled:pointer-events-none disabled:opacity-50',
   {
     variants: {
       variant: {
         default:
-          'bg-[#222222] text-white rounded-airbnb hover:bg-[#ff385c] active:scale-95',
+          'bg-[#222222] text-white hover:bg-design-primary dark:bg-[#222222] dark:hover:bg-design-primary-hover',
         destructive:
-          'bg-[#c13515] text-white rounded-airbnb hover:bg-[#e00b41] active:scale-95',
+          'bg-design-error text-white hover:bg-design-primary-hover',
         outline:
-          'border border-[#c1c1c1] bg-white text-[#222222] rounded-airbnb hover:border-[#222222] hover:shadow-airbnb-hover',
+          'border border-design-border bg-design-card text-design-text hover:border-design-text hover:shadow-design-hover',
         secondary:
-          'bg-[#f2f2f2] text-[#222222] rounded-airbnb hover:bg-[#e8e8e8]',
-        ghost: 'hover:bg-[#f2f2f2] text-[#222222] rounded-airbnb',
-        link: 'text-[#ff385c] underline-offset-4 hover:underline',
+          'bg-design-muted text-design-text hover:brightness-95 dark:hover:brightness-110',
+        ghost:
+          'text-design-secondary hover:bg-design-muted hover:text-design-text',
+        link:
+          'text-design-primary underline-offset-4 hover:text-design-primary-hover hover:underline',
       },
       size: {
         default: 'h-10 px-6 py-2',

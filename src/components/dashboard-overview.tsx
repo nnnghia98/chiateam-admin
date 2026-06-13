@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   CalendarDays,
   Flame,
@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { apiClient } from '@/lib/api-client';
 import { Skeleton } from '@/components/skeleton';
+import { useI18n } from '@/contexts/i18n-context';
 import type { LeaderboardEntry } from '@/types/leaderboard';
 import type { Match } from '@/types/match';
 import type { Player } from '@/types/player';
@@ -27,21 +28,19 @@ interface Stats {
 }
 
 const rankStyles = [
-  'bg-[#ff385c] text-white',
+  'bg-design-primary text-white',
   'bg-[#222222] text-white dark:bg-[#f5f5f5] dark:text-[#111111]',
-  'bg-[#2d6a4f] text-white',
+  'bg-design-muted text-design-text',
 ];
 
-const dateFormatter = new Intl.DateTimeFormat('en', {
-  month: 'short',
-  day: 'numeric',
-});
-
-function formatShortDate(value?: string) {
+function formatShortDate(value: string | undefined, locale: string) {
   if (!value) return '--';
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return '--';
-  return dateFormatter.format(date);
+  return new Intl.DateTimeFormat(locale, {
+    month: 'short',
+    day: 'numeric',
+  }).format(date);
 }
 
 function formatScore(match?: Match) {
@@ -52,20 +51,23 @@ function formatScore(match?: Match) {
   return `${match.home_score} : ${match.away_score}`;
 }
 
-function getOutcome(match: Match) {
+function getOutcome(match: Match, t: ReturnType<typeof useI18n>['t']) {
   if (match.home_score === null || match.away_score === null) {
-    return { label: 'Pending', tone: 'bg-[#f2f2f2] text-[#6a6a6a] dark:bg-[#2a2a2a] dark:text-[#a3a3a3]' };
+    return {
+      label: t('dashboard.pending'),
+      tone: 'bg-design-muted text-design-secondary',
+    };
   }
 
   if (match.home_score > match.away_score) {
-    return { label: 'Win', tone: 'bg-[#e7f4ec] text-[#1b6b43] dark:bg-[#153523] dark:text-[#9de0b9]' };
+    return { label: t('dashboard.win'), tone: 'bg-design-muted text-design-text' };
   }
 
   if (match.home_score < match.away_score) {
-    return { label: 'Loss', tone: 'bg-[#fff0f2] text-[#c13515] dark:bg-[#3a1020] dark:text-[#ffb1bd]' };
+    return { label: t('dashboard.loss'), tone: 'bg-design-active text-design-error' };
   }
 
-  return { label: 'Draw', tone: 'bg-[#fff6df] text-[#8a5a00] dark:bg-[#362a12] dark:text-[#ffd77a]' };
+  return { label: t('dashboard.draw'), tone: 'bg-design-muted text-design-secondary' };
 }
 
 function DashboardSkeleton() {
@@ -86,6 +88,7 @@ function DashboardSkeleton() {
 }
 
 export function DashboardOverview() {
+  const { locale, t } = useI18n();
   const [stats, setStats] = useState<Stats>({
     totalPlayers: 0,
     totalMatches: 0,
@@ -96,11 +99,7 @@ export function DashboardOverview() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    void loadStats();
-  }, []);
-
-  const loadStats = async () => {
+  const loadStats = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -131,11 +130,15 @@ export function DashboardOverview() {
       });
     } catch (err) {
       console.error('Failed to load stats:', err);
-      setError('Dashboard data could not be loaded.');
+      setError(t('dashboard.loadError'));
     } finally {
       setLoading(false);
     }
-  };
+  }, [t]);
+
+  useEffect(() => {
+    void loadStats();
+  }, [loadStats]);
 
   const topScorer = stats.topScorers[0];
 
@@ -158,36 +161,43 @@ export function DashboardOverview() {
     return [
       {
         title: 'Squad',
+        titleKey: 'dashboard.squad' as const,
         value: stats.totalPlayers,
-        detail: 'registered players',
+        detail: t('dashboard.registeredPlayers'),
         icon: Users,
-        accent: 'bg-[#fff0f2] text-[#ff385c] dark:bg-[#3a1020]',
+        accent: 'bg-design-active text-design-primary-strong',
       },
       {
         title: 'Matches',
+        titleKey: 'dashboard.matches' as const,
         value: stats.totalMatches,
-        detail: 'recorded fixtures',
+        detail: t('dashboard.recordedFixtures'),
         icon: CalendarDays,
-        accent: 'bg-[#e9f5ee] text-[#2d6a4f] dark:bg-[#143224]',
+        accent: 'bg-design-muted text-design-text',
       },
       {
         title: 'Goals per match',
+        titleKey: 'dashboard.goalsPerMatch' as const,
         value: averageGoals,
-        detail: `${totalGoals} goals, ${totalAssists} assists`,
+        detail: t('dashboard.goalsAssists', {
+          goals: totalGoals,
+          assists: totalAssists,
+        }),
         icon: Gauge,
-        accent: 'bg-[#fff6df] text-[#a96b00] dark:bg-[#3a2c10]',
+        accent: 'bg-design-muted text-design-text',
       },
       {
         title: 'Best win rate',
+        titleKey: 'dashboard.bestWinRate' as const,
         value: bestWinRate
           ? `${(bestWinRate.stats.winrate * 100).toFixed(0)}%`
           : '0%',
-        detail: bestWinRate?.player.name ?? 'No qualified player',
+        detail: bestWinRate?.player.name ?? t('dashboard.noQualifiedPlayer'),
         icon: ShieldCheck,
-        accent: 'bg-[#edf0ff] text-[#3544a5] dark:bg-[#191f45]',
+        accent: 'bg-design-muted text-design-text',
       },
     ];
-  }, [stats]);
+  }, [stats, t]);
 
   if (loading) {
     return <DashboardSkeleton />;
@@ -196,52 +206,52 @@ export function DashboardOverview() {
   return (
     <div className="space-y-5">
       <section>
-        <aside className="rounded-airbnb border border-[#e7e7e7] bg-white p-5 shadow-airbnb-card dark:border-[#2e2e2e] dark:bg-[#1c1c1e]">
+        <aside className="design-surface p-5">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#6a6a6a] dark:text-[#a3a3a3]">
-                Current finisher
+              <p className="design-section-label">
+                {t('dashboard.currentFinisher')}
               </p>
-              <h2 className="mt-2 text-2xl font-bold text-[#222222] dark:text-[#f5f5f5]">
-                {topScorer?.player.name ?? 'No scorer yet'}
+              <h2 className="mt-2 text-2xl font-bold text-design-text">
+                {topScorer?.player.name ?? t('dashboard.noScorer')}
               </h2>
             </div>
-            <div className="flex h-11 w-11 items-center justify-center rounded-airbnb bg-[#ff385c] text-white">
+            <div className="flex h-11 w-11 items-center justify-center rounded-airbnb bg-design-primary text-white">
               <Flame className="h-5 w-5" />
             </div>
           </div>
           <div className="mt-6 grid grid-cols-2 gap-3">
-            <div className="rounded-airbnb bg-[#f7f7f7] p-4 dark:bg-[#2a2a2a]">
-              <p className="text-xs text-[#6a6a6a] dark:text-[#a3a3a3]">
-                Goals
+            <div className="design-muted-surface p-4">
+              <p className="text-xs text-design-secondary">
+                {t('dashboard.goals')}
               </p>
-              <p className="mt-1 text-3xl font-black text-[#222222] dark:text-[#f5f5f5]">
+              <p className="mt-1 text-3xl font-black text-design-text">
                 {topScorer?.stats.goal ?? 0}
               </p>
             </div>
-            <div className="rounded-airbnb bg-[#f7f7f7] p-4 dark:bg-[#2a2a2a]">
-              <p className="text-xs text-[#6a6a6a] dark:text-[#a3a3a3]">
-                Assists
+            <div className="design-muted-surface p-4">
+              <p className="text-xs text-design-secondary">
+                {t('dashboard.assists')}
               </p>
-              <p className="mt-1 text-3xl font-black text-[#222222] dark:text-[#f5f5f5]">
+              <p className="mt-1 text-3xl font-black text-design-text">
                 {topScorer?.stats.assist ?? 0}
               </p>
             </div>
           </div>
-          <div className="mt-4 rounded-airbnb border border-[#e7e7e7] p-4 dark:border-[#2e2e2e]">
+          <div className="mt-4 rounded-airbnb border border-design-border-soft p-4">
             <div className="flex items-center justify-between text-sm">
-              <span className="text-[#6a6a6a] dark:text-[#a3a3a3]">
-                Win rate
+              <span className="text-design-secondary">
+                {t('dashboard.winRate')}
               </span>
-              <span className="font-bold text-[#222222] dark:text-[#f5f5f5]">
+              <span className="font-bold text-design-text">
                 {topScorer
                   ? `${(topScorer.stats.winrate * 100).toFixed(1)}%`
                   : '0%'}
               </span>
             </div>
-            <div className="mt-3 h-2 overflow-hidden rounded-full bg-[#f2f2f2] dark:bg-[#2a2a2a]">
+            <div className="mt-3 h-2 overflow-hidden rounded-full bg-design-muted">
               <div
-                className="h-full rounded-full bg-[#ff385c]"
+                className="h-full rounded-full bg-design-primary"
                 style={{
                   width: `${Math.min((topScorer?.stats.winrate ?? 0) * 100, 100)}%`,
                 }}
@@ -252,7 +262,7 @@ export function DashboardOverview() {
       </section>
 
       {error && (
-        <div className="rounded-airbnb border border-[#ffd1d8] bg-[#fff0f2] px-4 py-3 text-sm font-medium text-[#c13515] dark:border-[#5a1a27] dark:bg-[#2b1118] dark:text-[#ffb1bd]">
+        <div className="rounded-airbnb border border-[#ffd1d8] bg-design-active px-4 py-3 text-sm font-medium text-design-error dark:border-[#5a1a27]">
           {error}
         </div>
       )}
@@ -264,14 +274,12 @@ export function DashboardOverview() {
           return (
             <div
               key={metric.title}
-              className="group rounded-airbnb border border-[#e7e7e7] bg-white p-4 shadow-airbnb-card transition-transform duration-200 hover:-translate-y-0.5 dark:border-[#2e2e2e] dark:bg-[#1c1c1e]"
+              className="group design-surface p-4 transition-transform duration-200 hover:-translate-y-0.5"
             >
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#6a6a6a] dark:text-[#a3a3a3]">
-                    {metric.title}
-                  </p>
-                  <p className="mt-3 text-3xl font-black tracking-tight text-[#222222] dark:text-[#f5f5f5]">
+                  <p className="design-section-label">{t(metric.titleKey)}</p>
+                  <p className="mt-3 text-3xl font-black tracking-tight text-design-text">
                     {metric.value}
                   </p>
                 </div>
@@ -281,7 +289,7 @@ export function DashboardOverview() {
                   <Icon className="h-5 w-5" />
                 </div>
               </div>
-              <p className="mt-3 truncate text-sm text-[#6a6a6a] dark:text-[#a3a3a3]">
+              <p className="mt-3 truncate text-sm text-design-secondary">
                 {metric.detail}
               </p>
             </div>
@@ -290,23 +298,23 @@ export function DashboardOverview() {
       </section>
 
       <section className="grid gap-4 xl:grid-cols-[1fr_0.9fr]">
-        <div className="rounded-airbnb border border-[#e7e7e7] bg-white shadow-airbnb-card dark:border-[#2e2e2e] dark:bg-[#1c1c1e]">
-          <div className="flex items-center justify-between border-b border-[#f2f2f2] px-5 py-4 dark:border-[#2e2e2e]">
+        <div className="design-surface overflow-hidden">
+          <div className="flex items-center justify-between border-b border-design-border-soft px-5 py-4">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#6a6a6a] dark:text-[#a3a3a3]">
-                Fixture log
+              <p className="design-section-label">
+                {t('dashboard.fixtureLog')}
               </p>
-              <h2 className="mt-1 text-lg font-bold text-[#222222] dark:text-[#f5f5f5]">
-                Recent matches
+              <h2 className="mt-1 text-lg font-bold text-design-text">
+                {t('dashboard.recentMatches')}
               </h2>
             </div>
-            <Target className="h-5 w-5 text-[#ff385c]" />
+            <Target className="h-5 w-5 text-design-primary" />
           </div>
 
-          <div className="divide-y divide-[#f2f2f2] dark:divide-[#2e2e2e]">
+          <div className="divide-y divide-design-border-soft">
             {stats.recentMatches.length > 0 ? (
               stats.recentMatches.map(match => {
-                const outcome = getOutcome(match);
+                const outcome = getOutcome(match, t);
 
                 return (
                   <div
@@ -314,19 +322,19 @@ export function DashboardOverview() {
                     className="grid gap-3 px-5 py-4 sm:grid-cols-[84px_1fr_auto] sm:items-center"
                   >
                     <div>
-                      <p className="text-sm font-bold text-[#222222] dark:text-[#f5f5f5]">
-                        {formatShortDate(match.match_date)}
+                      <p className="text-sm font-bold text-design-text">
+                        {formatShortDate(match.match_date, locale)}
                       </p>
-                      <p className="mt-1 text-xs text-[#6a6a6a] dark:text-[#a3a3a3]">
-                        Match #{match.id}
+                      <p className="mt-1 text-xs text-design-secondary">
+                        {t('dashboard.matchNumber', { id: match.id })}
                       </p>
                     </div>
                     <div className="min-w-0">
-                      <p className="truncate text-sm font-semibold text-[#222222] dark:text-[#f5f5f5]">
-                        {match.san || 'Unknown location'}
+                      <p className="truncate text-sm font-semibold text-design-text">
+                        {match.san || t('dashboard.unknownLocation')}
                       </p>
-                      <p className="mt-1 truncate text-xs text-[#6a6a6a] dark:text-[#a3a3a3]">
-                        {match.notes || 'No match note recorded'}
+                      <p className="mt-1 truncate text-xs text-design-secondary">
+                        {match.notes || t('dashboard.noMatchNote')}
                       </p>
                     </div>
                     <div className="flex items-center justify-between gap-3 sm:justify-end">
@@ -335,7 +343,7 @@ export function DashboardOverview() {
                       >
                         {outcome.label}
                       </span>
-                      <span className="min-w-20 text-right text-xl font-black text-[#222222] dark:text-[#f5f5f5]">
+                      <span className="min-w-20 text-right text-xl font-black text-design-text">
                         {formatScore(match)}
                       </span>
                     </div>
@@ -343,24 +351,24 @@ export function DashboardOverview() {
                 );
               })
             ) : (
-              <div className="px-5 py-10 text-center text-sm text-[#6a6a6a] dark:text-[#a3a3a3]">
-                No matches yet
+              <div className="px-5 py-10 text-center text-sm text-design-secondary">
+                {t('dashboard.noMatchesYet')}
               </div>
             )}
           </div>
         </div>
 
-        <div className="rounded-airbnb border border-[#e7e7e7] bg-white shadow-airbnb-card dark:border-[#2e2e2e] dark:bg-[#1c1c1e]">
-          <div className="flex items-center justify-between border-b border-[#f2f2f2] px-5 py-4 dark:border-[#2e2e2e]">
+        <div className="design-surface overflow-hidden">
+          <div className="flex items-center justify-between border-b border-design-border-soft px-5 py-4">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#6a6a6a] dark:text-[#a3a3a3]">
-                Leaderboard pulse
+              <p className="design-section-label">
+                {t('dashboard.leaderboardPulse')}
               </p>
-              <h2 className="mt-1 text-lg font-bold text-[#222222] dark:text-[#f5f5f5]">
-                Top scorers
+              <h2 className="mt-1 text-lg font-bold text-design-text">
+                {t('dashboard.topScorers')}
               </h2>
             </div>
-            <Trophy className="h-5 w-5 text-[#ff385c]" />
+            <Trophy className="h-5 w-5 text-design-primary" />
           </div>
 
           <div className="space-y-3 p-5">
@@ -373,38 +381,40 @@ export function DashboardOverview() {
                 return (
                   <div
                     key={entry.player.number}
-                    className="rounded-airbnb border border-[#f2f2f2] p-3 dark:border-[#2e2e2e]"
+                    className="rounded-airbnb border border-design-border-soft p-3"
                   >
                     <div className="flex items-center gap-3">
                       <span
                         className={`flex h-8 w-8 items-center justify-center rounded-airbnb text-sm font-black ${
                           rankStyles[index] ??
-                          'bg-[#f2f2f2] text-[#6a6a6a] dark:bg-[#2a2a2a] dark:text-[#a3a3a3]'
+                          'bg-design-muted text-design-secondary'
                         }`}
                       >
                         {index + 1}
                       </span>
                       <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-bold text-[#222222] dark:text-[#f5f5f5]">
+                        <p className="truncate text-sm font-bold text-design-text">
                           {entry.player.name || `#${entry.player.number}`}
                         </p>
-                        <p className="mt-0.5 text-xs text-[#6a6a6a] dark:text-[#a3a3a3]">
-                          {entry.stats.assist} assists ·{' '}
-                          {(entry.stats.winrate * 100).toFixed(1)}% win rate
+                        <p className="mt-0.5 text-xs text-design-secondary">
+                          {t('dashboard.topScorerMeta', {
+                            assists: entry.stats.assist,
+                            winRate: (entry.stats.winrate * 100).toFixed(1),
+                          })}
                         </p>
                       </div>
                       <div className="text-right">
-                        <p className="text-xl font-black text-[#222222] dark:text-[#f5f5f5]">
+                        <p className="text-xl font-black text-design-text">
                           {entry.stats.goal}
                         </p>
-                        <p className="text-[11px] uppercase tracking-[0.12em] text-[#6a6a6a] dark:text-[#a3a3a3]">
-                          goals
+                        <p className="text-[11px] uppercase tracking-[0.12em] text-design-secondary">
+                          {t('dashboard.goals')}
                         </p>
                       </div>
                     </div>
-                    <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-[#f2f2f2] dark:bg-[#2a2a2a]">
+                    <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-design-muted">
                       <div
-                        className="h-full rounded-full bg-[#ff385c]"
+                        className="h-full rounded-full bg-design-primary"
                         style={{ width: `${Math.min(goalShare, 100)}%` }}
                       />
                     </div>
@@ -412,8 +422,8 @@ export function DashboardOverview() {
                 );
               })
             ) : (
-              <div className="py-10 text-center text-sm text-[#6a6a6a] dark:text-[#a3a3a3]">
-                No data yet
+              <div className="py-10 text-center text-sm text-design-secondary">
+                {t('dashboard.noDataYet')}
               </div>
             )}
           </div>
@@ -421,21 +431,23 @@ export function DashboardOverview() {
       </section>
 
       <section className="grid gap-4 lg:grid-cols-[0.7fr_1.3fr]">
-        <div className="rounded-airbnb border border-[#e7e7e7] bg-[#2d6a4f] p-5 text-white shadow-airbnb-card">
+        <div className="rounded-card border border-[#222222] bg-[#222222] p-5 text-white shadow-design-card dark:border-design-border-soft">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.16em] text-white/65">
-                Team rhythm
+                {t('dashboard.teamRhythm')}
               </p>
               <h2 className="mt-2 text-2xl font-black">
-                {stats.recentMatches.length} recent signals
+                {t('dashboard.recentSignals', {
+                  count: stats.recentMatches.length,
+                })}
               </h2>
             </div>
             <Sparkles className="h-5 w-5" />
           </div>
           <div className="mt-6 grid grid-cols-3 gap-2">
             {stats.recentMatches.slice(0, 6).map(match => {
-              const outcome = getOutcome(match).label;
+              const outcome = getOutcome(match, t).label;
 
               return (
                 <div
@@ -443,7 +455,7 @@ export function DashboardOverview() {
                   className="rounded-airbnb bg-white/12 px-3 py-2 text-center"
                 >
                   <p className="text-xs font-semibold text-white/65">
-                    {formatShortDate(match.match_date)}
+                    {formatShortDate(match.match_date, locale)}
                   </p>
                   <p className="mt-1 text-sm font-black">{outcome}</p>
                 </div>
@@ -452,42 +464,42 @@ export function DashboardOverview() {
           </div>
         </div>
 
-        <div className="rounded-airbnb border border-[#e7e7e7] bg-white p-5 shadow-airbnb-card dark:border-[#2e2e2e] dark:bg-[#1c1c1e]">
+        <div className="design-surface p-5">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#6a6a6a] dark:text-[#a3a3a3]">
-                Squad efficiency
+               <p className="design-section-label">
+                {t('dashboard.squadEfficiency')}
               </p>
-              <h2 className="mt-1 text-lg font-bold text-[#222222] dark:text-[#f5f5f5]">
-                Reliable contributors
+              <h2 className="mt-1 text-lg font-bold text-design-text">
+                {t('dashboard.reliableContributors')}
               </h2>
             </div>
-            <Medal className="h-5 w-5 text-[#ff385c]" />
+            <Medal className="h-5 w-5 text-design-primary" />
           </div>
           <div className="mt-5 grid gap-3 md:grid-cols-3">
             {stats.leaderboard.slice(0, 3).map(entry => (
               <div
                 key={entry.player.number}
-                className="rounded-airbnb bg-[#f7f7f7] p-4 dark:bg-[#2a2a2a]"
+                className="design-muted-surface p-4"
               >
-                <p className="truncate text-sm font-bold text-[#222222] dark:text-[#f5f5f5]">
+                <p className="truncate text-sm font-bold text-design-text">
                   {entry.player.name}
                 </p>
                 <div className="mt-4 flex items-end justify-between gap-3">
                   <div>
-                    <p className="text-2xl font-black text-[#222222] dark:text-[#f5f5f5]">
+                    <p className="text-2xl font-black text-design-text">
                       {entry.stats.total_match}
                     </p>
-                    <p className="text-xs text-[#6a6a6a] dark:text-[#a3a3a3]">
-                      matches
+                    <p className="text-xs text-design-secondary">
+                      {t('dashboard.matches')}
                     </p>
                   </div>
                   <div className="text-right">
-                    <p className="text-2xl font-black text-[#222222] dark:text-[#f5f5f5]">
+                    <p className="text-2xl font-black text-design-text">
                       {(entry.stats.winrate * 100).toFixed(0)}%
                     </p>
-                    <p className="text-xs text-[#6a6a6a] dark:text-[#a3a3a3]">
-                      win rate
+                    <p className="text-xs text-design-secondary">
+                      {t('dashboard.winRate')}
                     </p>
                   </div>
                 </div>

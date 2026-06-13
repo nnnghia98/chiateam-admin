@@ -17,7 +17,7 @@ export function Skeleton({ className }: SkeletonProps) {
 
 export function StatCardSkeleton() {
   return (
-    <div className="p-5 bg-white dark:bg-[#1c1c1e] rounded-card shadow-airbnb-card">
+    <div className="design-surface p-5">
       <div className="flex justify-between items-start mb-4">
         <Skeleton className="h-4 w-24" />
         <Skeleton className="h-8 w-8 rounded-full" />
@@ -30,7 +30,7 @@ export function StatCardSkeleton() {
 
 export function PlayerCardSkeleton() {
   return (
-    <div className="p-4 bg-white dark:bg-[#1c1c1e] rounded-card shadow-airbnb-card">
+    <div className="design-surface p-4">
       <div className="flex justify-between items-center">
         <div className="space-y-2 flex-1">
           <div className="flex items-center gap-2">
@@ -51,7 +51,7 @@ export function PlayerCardSkeleton() {
 
 export function MatchCardSkeleton() {
   return (
-    <div className="p-4 bg-white dark:bg-[#1c1c1e] rounded-card shadow-airbnb-card">
+    <div className="design-surface p-4">
       <div className="flex justify-between items-center">
         <div className="space-y-2 flex-1">
           <Skeleton className="h-5 w-28" />
@@ -69,7 +69,7 @@ export function MatchCardSkeleton() {
 
 export function LeaderboardCardSkeleton() {
   return (
-    <div className="p-4 bg-white dark:bg-[#1c1c1e] rounded-card shadow-airbnb-card">
+    <div className="design-surface p-4">
       <div className="flex items-center gap-3">
         <Skeleton className="h-9 w-9 rounded-full flex-shrink-0" />
         <div className="flex-1 space-y-2">

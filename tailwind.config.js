@@ -42,6 +42,22 @@ module.exports = {
           DEFAULT: 'hsl(var(--card))',
           foreground: 'hsl(var(--card-foreground))',
         },
+        design: {
+          primary: 'var(--design-primary)',
+          'primary-hover': 'var(--design-primary-hover)',
+          'primary-strong': 'var(--design-primary-strong)',
+          text: 'var(--design-text-primary)',
+          secondary: 'var(--design-text-secondary)',
+          disabled: 'var(--design-text-disabled)',
+          page: 'var(--design-bg-page)',
+          card: 'var(--design-bg-card)',
+          muted: 'var(--design-bg-muted)',
+          border: 'var(--design-border)',
+          'border-soft': 'var(--design-border-soft)',
+          active: 'var(--design-active)',
+          error: 'var(--design-error)',
+          legal: 'var(--design-legal)',
+        },
         /* Airbnb palette */
         airbnb: {
           red: '#ff385c',
@@ -70,6 +86,9 @@ module.exports = {
         'airbnb-hover': 'rgba(0,0,0,0.08) 0px 4px 12px',
         'airbnb-focus':
           'rgb(255,255,255) 0px 0px 0px 4px, rgba(0,0,0,0.2) 0px 0px 0px 6px',
+        'design-card': 'var(--design-shadow-card)',
+        'design-hover': 'var(--design-shadow-hover)',
+        'design-focus': 'var(--design-focus-ring)',
       },
       fontWeight: {
         medium: '500',
