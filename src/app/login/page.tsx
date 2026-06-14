@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/auth-context';
 import { Button } from '@/components/ui/button';
@@ -132,17 +131,6 @@ export default function LoginPage() {
 
           {/* Hint */}
           <div className="mt-6 border-t border-design-border-soft pt-5">
-            <div className="mb-5 rounded-airbnb bg-design-muted px-3 py-3 text-center">
-              <p className="text-xs font-medium text-design-secondary">
-                {t('predictionKey.loginHint')}
-              </p>
-              <Link
-                href="/world-cup/predict"
-                className="mt-1 inline-flex text-sm font-bold text-design-primary transition-colors hover:text-design-primary-hover"
-              >
-                {t('predictionKey.openFromLogin')}
-              </Link>
-            </div>
             <p className="mb-2 text-center text-xs font-medium text-design-secondary">
               {t('login.accessLevels')}
             </p>

@@ -1,7 +1,9 @@
 import type {
   WorldCupLeaderboardResponse,
+  WorldCupMatch,
   WorldCupMatchDetail,
   WorldCupMatchPayload,
+  WorldCupMatchStatus,
   WorldCupMemberKey,
   WorldCupMemberPredictionResponse,
   WorldCupOutcome,
@@ -134,6 +136,12 @@ class ApiClient {
     return this.fetch<WorldCupOverallResponse>('/api/world-cup-predictions');
   }
 
+  async getWorldCupPredictionsForMemberKey(key: string) {
+    return this.fetch<WorldCupOverallResponse>(
+      `/api/world-cup-predictions?memberKey=${encodeURIComponent(key)}`
+    );
+  }
+
   async getWorldCupMatches() {
     return this.fetch<any>('/api/world-cup-predictions/matches');
   }
@@ -144,7 +152,11 @@ class ApiClient {
     );
   }
 
-  async createWorldCupMatch(data: Required<WorldCupMatchPayload>) {
+  async createWorldCupMatch(
+    data: Omit<Required<WorldCupMatchPayload>, 'status'> & {
+      status?: WorldCupMatchPayload['status'];
+    }
+  ) {
     return this.fetch<WorldCupMatchDetail>('/api/world-cup-predictions/matches', {
       method: 'POST',
       body: JSON.stringify(data),
@@ -167,6 +179,16 @@ class ApiClient {
       {
         method: 'POST',
         body: JSON.stringify({ result }),
+      }
+    );
+  }
+
+  async setWorldCupMatchStatus(matchId: string, status: WorldCupMatchStatus) {
+    return this.fetch<WorldCupMatchDetail | WorldCupMatch>(
+      `/api/world-cup-predictions/matches/${encodeURIComponent(matchId)}/status`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ status }),
       }
     );
   }

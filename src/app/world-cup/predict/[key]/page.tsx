@@ -15,7 +15,7 @@ import type {
   WorldCupPickValue,
   WorldCupPredictionEntry,
 } from '@/types/world-cup';
-import { ArrowLeft, Save, ShieldCheck } from 'lucide-react';
+import { ArrowLeft, LoaderCircle, ShieldCheck } from 'lucide-react';
 
 type PageProps = {
   params: Promise<{ key: string }>;
@@ -45,6 +45,31 @@ function predictionPick(prediction?: WorldCupPredictionEntry | null) {
   if (!prediction) return '';
   if (prediction.censored || prediction.value === '***') return '***';
   return outcomeToPick(prediction.value) || outcomeToPick(prediction.prediction);
+}
+
+function editablePredictionPick(prediction?: WorldCupPredictionEntry | null) {
+  if (!prediction) return '';
+  return outcomeToPick(prediction.value) || outcomeToPick(prediction.prediction);
+}
+
+function cleanPredictions(
+  predictions: Record<string, WorldCupPredictionEntry | null>
+) {
+  return Object.fromEntries(
+    Object.entries(predictions).map(([matchId, entry]) => [
+      matchId,
+      editablePredictionPick(entry) ? entry : null,
+    ])
+  );
+}
+
+function predictionsToDrafts(predictions: PredictionMap) {
+  return Object.fromEntries(
+    Object.entries(predictions).map(([matchId, entry]) => {
+      const pick = predictionPick(entry);
+      return [matchId, pick === '***' ? '' : pick];
+    })
+  );
 }
 
 function matchSchedule(match: WorldCupMatch) {
@@ -83,18 +108,14 @@ export default function WorldCupMemberPredictionPage({ params }: PageProps) {
     try {
       setLoading(true);
       const response = await apiClient.getWorldCupMemberPredictions(key);
-      const loadedPredictions = response.predictions ?? response.entries ?? {};
+      const loadedPredictions = cleanPredictions(
+        response.predictions ?? response.entries ?? {}
+      );
+      window.localStorage.setItem('worldCupPredictionKey', key);
       setMember(response.member);
       setMatches(response.matches ?? []);
       setPredictions(loadedPredictions);
-      setDrafts(
-        Object.fromEntries(
-          Object.entries(loadedPredictions).map(([matchId, entry]) => {
-            const pick = predictionPick(entry);
-            return [matchId, pick === '***' ? '' : pick];
-          })
-        )
-      );
+      setDrafts(predictionsToDrafts(loadedPredictions));
     } catch (error) {
       console.error('Failed to load member predictions:', error);
       alert(t('memberPrediction.invalidLink'));
@@ -107,23 +128,30 @@ export default function WorldCupMemberPredictionPage({ params }: PageProps) {
     void loadPredictions();
   }, [loadPredictions]);
 
-  const savePrediction = async (matchId: string) => {
-    const prediction = pickToOutcome(drafts[matchId] ?? '');
+  const savePrediction = async (matchId: string, pick: WorldCupPickValue) => {
+    const previousValue = drafts[matchId] ?? editablePredictionPick(predictions[matchId]);
+    const prediction = pickToOutcome(pick);
     if (prediction === null) {
       alert(t('memberPrediction.saveError'));
       return;
     }
 
     try {
+      setDrafts(current => ({ ...current, [matchId]: pick }));
       setSavingMatchId(matchId);
-      await apiClient.updateWorldCupMemberPrediction(
+      const response = await apiClient.updateWorldCupMemberPrediction(
         key,
         matchId,
         prediction
       );
-      await loadPredictions();
+      const loadedPredictions = cleanPredictions(
+        response.predictions ?? response.entries ?? {}
+      );
+      setPredictions(loadedPredictions);
+      setDrafts(predictionsToDrafts(loadedPredictions));
     } catch (error) {
       console.error('Failed to save prediction:', error);
+      setDrafts(current => ({ ...current, [matchId]: previousValue }));
       alert(t('memberPrediction.saveError'));
     } finally {
       setSavingMatchId(null);
@@ -180,7 +208,6 @@ export default function WorldCupMemberPredictionPage({ params }: PageProps) {
                 <th className="w-32 border border-design-border-soft bg-design-active px-3 py-2 text-design-primary-strong">
                   {member?.name ?? t('memberPrediction.you')}
                 </th>
-                <th className="w-28 border border-design-border-soft px-3 py-2">{t('common.save')}</th>
               </tr>
             </thead>
             <tbody>
@@ -216,33 +243,22 @@ export default function WorldCupMemberPredictionPage({ params }: PageProps) {
                           {displayPick(value || '-')}
                         </span>
                       ) : (
-                        <select
-                          value={value}
-                          onChange={event =>
-                            setDrafts({
-                              ...drafts,
-                              [id]: event.target.value as WorldCupPickValue | '',
-                            })
-                          }
-                          className="h-10 w-full rounded-airbnb border border-design-border bg-design-card px-3 text-center text-lg font-bold text-design-text outline-none focus:border-design-primary focus:ring-2 focus:ring-design-primary/20"
-                        >
-                          <option value="">-</option>
-                          <option value="0">H</option>
-                          <option value="1">1</option>
-                          <option value="2">2</option>
-                        </select>
+                        <div className="relative">
+                          <select
+                            value={value}
+                            disabled={Boolean(savingMatchId)}
+                            onChange={event =>
+                              savePrediction(id, event.target.value as WorldCupPickValue)
+                            }
+                            className="h-10 w-full rounded-airbnb border border-design-border bg-design-card px-3 text-center text-lg font-bold text-design-text outline-none transition-opacity focus:border-design-primary focus:ring-2 focus:ring-design-primary/20 disabled:cursor-wait disabled:opacity-60"
+                          >
+                            <option value="" disabled>-</option>
+                            <option value="0">H</option>
+                            <option value="1">1</option>
+                            <option value="2">2</option>
+                          </select>
+                        </div>
                       )}
-                    </td>
-                    <td className="border border-design-border-soft px-2 py-1 text-center">
-                      <Button
-                        type="button"
-                        size="sm"
-                        disabled={isClosed || savingMatchId === id}
-                        onClick={() => savePrediction(id)}
-                      >
-                        <Save className="mr-2 h-4 w-4" />
-                        {t('common.save')}
-                      </Button>
                     </td>
                   </tr>
                 );
@@ -251,6 +267,18 @@ export default function WorldCupMemberPredictionPage({ params }: PageProps) {
           </table>
         </div>
       </div>
+      {savingMatchId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 px-4">
+          <div
+            className="flex items-center gap-3 rounded-card border border-design-border-soft bg-design-card px-5 py-4 text-design-text shadow-design-card"
+            role="status"
+            aria-live="polite"
+          >
+            <LoaderCircle className="h-5 w-5 animate-spin text-design-primary" />
+            <span className="text-sm font-semibold">{t('common.loading')}</span>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

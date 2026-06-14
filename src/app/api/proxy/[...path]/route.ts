@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getInternalApiAuthToken, getSessionFromRequest } from '@/lib/auth';
+import { getWorldCupEffectiveStatus } from '@/lib/world-cup-time';
 
 export const runtime = 'nodejs';
 
@@ -32,7 +33,7 @@ type NormalizedPlayerEntry = {
   metadata: string;
 };
 
-function buildApiUrl(request: NextRequest, path: string[]) {
+function buildApiUrl(request: NextRequest, path: string[], excludedSearchParams: string[] = []) {
   const normalizedPath = [...path];
   const baseUrl = API_URL?.replace(/\/+$/, '') || '';
 
@@ -52,9 +53,11 @@ function buildApiUrl(request: NextRequest, path: string[]) {
   }
 
   const joinedPath = normalizedPath.join('/');
-  const searchParams = request.nextUrl.searchParams.toString();
+  const searchParams = new URLSearchParams(request.nextUrl.searchParams);
+  excludedSearchParams.forEach(param => searchParams.delete(param));
+  const search = searchParams.toString();
   const pathSuffix = joinedPath ? `/${joinedPath}` : '';
-  return `${baseUrl}${pathSuffix}${searchParams ? `?${searchParams}` : ''}`;
+  return `${baseUrl}${pathSuffix}${search ? `?${search}` : ''}`;
 }
 
 function unauthorized() {
@@ -105,10 +108,121 @@ function isWorldCupMemberPredictionPath(path: string[]) {
   );
 }
 
+function getWorldCupMemberPredictionKey(path: string[]) {
+  const normalized = path.map(segment => segment.toLowerCase());
+  const worldCupIndex = normalized.lastIndexOf('world-cup-predictions');
+  if (
+    worldCupIndex < 0 ||
+    normalized[worldCupIndex + 1] !== 'member' ||
+    !path[worldCupIndex + 2]
+  ) {
+    return '';
+  }
+
+  return path[worldCupIndex + 2];
+}
+
+function isWorldCupOverviewPath(path: string[]) {
+  const normalized = path.map(segment => segment.toLowerCase());
+  const worldCupIndex = normalized.lastIndexOf('world-cup-predictions');
+  return worldCupIndex >= 0 && worldCupIndex === normalized.length - 1;
+}
+
 function isWorldCupMemberKeyPath(path: string[]) {
   const normalized = path.map(segment => segment.toLowerCase());
   const worldCupIndex = normalized.lastIndexOf('world-cup-predictions');
   return worldCupIndex >= 0 && normalized[worldCupIndex + 1] === 'member-keys';
+}
+
+function getMemberOverviewKey(request: NextRequest) {
+  return request.nextUrl.searchParams.get('memberKey')?.trim() || '';
+}
+
+function hasPredictionValue(entry: Record<string, unknown>) {
+  return (
+    entry.value === 0 ||
+    entry.value === 1 ||
+    entry.value === 2 ||
+    entry.value === '0' ||
+    entry.value === '1' ||
+    entry.value === '2' ||
+    entry.prediction === 0 ||
+    entry.prediction === 1 ||
+    entry.prediction === 2 ||
+    entry.prediction === '0' ||
+    entry.prediction === '1' ||
+    entry.prediction === '2'
+  );
+}
+
+function buildWorldCupMemberValidationUrl(request: NextRequest, path: string[], key: string) {
+  const worldCupIndex = path
+    .map(segment => segment.toLowerCase())
+    .lastIndexOf('world-cup-predictions');
+  const validationPath = [
+    ...path.slice(0, worldCupIndex + 1),
+    'member',
+    encodeURIComponent(key),
+  ];
+  return buildApiUrl(request, validationPath, ['memberKey']);
+}
+
+function censorWorldCupOverview(data: unknown) {
+  if (!isRecord(data)) return data;
+
+  const rawMatches = data.matches;
+  const matches = Array.isArray(rawMatches)
+    ? rawMatches
+    : isRecord(rawMatches)
+      ? Object.values(rawMatches)
+      : [];
+  const censoredMatchIds = new Set(
+    matches
+      .filter(match => isRecord(match) && getWorldCupEffectiveStatus(match as any) !== 'SETTLED')
+      .map(match => String((match as { id?: unknown; matchNumber?: unknown }).id ?? (match as { matchNumber?: unknown }).matchNumber ?? ''))
+      .filter(Boolean)
+  );
+  const predictions = isRecord(data.predictions)
+    ? data.predictions
+    : isRecord(data.entries)
+      ? data.entries
+      : null;
+
+  if (!predictions || censoredMatchIds.size === 0) return data;
+
+  const censoredPredictions = Object.fromEntries(
+    Object.entries(predictions).map(([outerId, inner]) => {
+      if (!isRecord(inner)) return [outerId, inner];
+
+      const outerIsMatch = censoredMatchIds.has(outerId);
+      return [
+        outerId,
+        Object.fromEntries(
+          Object.entries(inner).map(([innerId, entry]) => {
+            const shouldCensor = outerIsMatch || censoredMatchIds.has(innerId);
+            if (!shouldCensor || !isRecord(entry) || !hasPredictionValue(entry)) {
+              return [innerId, entry];
+            }
+            return [
+              innerId,
+              {
+                ...entry,
+                prediction: '***',
+                value: '***',
+                censored: true,
+              },
+            ];
+          })
+        ),
+      ];
+    })
+  );
+
+  return {
+    ...data,
+    ...(isRecord(data.predictions) ? { predictions: censoredPredictions } : {}),
+    ...(isRecord(data.entries) ? { entries: censoredPredictions } : {}),
+  };
 }
 
 function normalizeAvatarValue(value: unknown) {
@@ -328,13 +442,71 @@ async function proxyJsonRequest(
   const session = getSessionFromRequest(request);
   const allowPublicMemberPrediction =
     isWorldCupMemberPredictionPath(path) && (method === 'GET' || method === 'PUT');
+  const publicMemberPredictionKey = allowPublicMemberPrediction && method === 'PUT'
+    ? getWorldCupMemberPredictionKey(path)
+    : '';
+  const memberOverviewKey = method === 'GET' && isWorldCupOverviewPath(path)
+    ? getMemberOverviewKey(request)
+    : '';
+  const allowPublicWorldCupOverview = Boolean(memberOverviewKey);
   const allowPublicWorldCupMemberKeys = isWorldCupMemberKeyPath(path);
   const shouldSendTrustedAdminHeaders =
-    !allowPublicMemberPrediction &&
+    (!allowPublicMemberPrediction || method === 'PUT') &&
     (!allowPublicWorldCupMemberKeys || Boolean(session));
 
-  if (!session && !allowPublicMemberPrediction && !allowPublicWorldCupMemberKeys) {
+  if (
+    !session &&
+    !allowPublicMemberPrediction &&
+    !allowPublicWorldCupOverview &&
+    !allowPublicWorldCupMemberKeys
+  ) {
     return unauthorized();
+  }
+
+  if (allowPublicWorldCupOverview) {
+    try {
+      const validationResponse = await fetch(
+        buildWorldCupMemberValidationUrl(request, path, memberOverviewKey),
+        {
+          method: 'GET',
+          headers: { 'Content-Type': 'application/json' },
+          cache: 'no-store',
+        }
+      );
+
+      if (!validationResponse.ok) {
+        return unauthorized();
+      }
+    } catch (error) {
+      console.error('World Cup member key validation failed:', error);
+      return NextResponse.json(
+        { error: 'Failed to reach API service' },
+        { status: 502 }
+      );
+    }
+  }
+
+  if (publicMemberPredictionKey) {
+    try {
+      const validationResponse = await fetch(
+        buildWorldCupMemberValidationUrl(request, path, publicMemberPredictionKey),
+        {
+          method: 'GET',
+          headers: { 'Content-Type': 'application/json' },
+          cache: 'no-store',
+        }
+      );
+
+      if (!validationResponse.ok) {
+        return unauthorized();
+      }
+    } catch (error) {
+      console.error('World Cup member key validation failed:', error);
+      return NextResponse.json(
+        { error: 'Failed to reach API service' },
+        { status: 502 }
+      );
+    }
   }
 
   let rawBody: string | undefined;
@@ -357,6 +529,7 @@ async function proxyJsonRequest(
     method !== 'GET' &&
     session?.role !== 'admin' &&
     !allowPublicMemberPrediction &&
+    !allowPublicWorldCupOverview &&
     !allowPublicWorldCupMemberKeys
   ) {
     if (!allowViewerMutation) {
@@ -372,7 +545,9 @@ async function proxyJsonRequest(
         ? {
             'X-Internal-Api-Auth': getInternalApiAuthToken(),
             'X-Admin-Role':
-              allowViewerMutation || session?.role === 'admin' ? 'admin' : 'viewer',
+              allowViewerMutation || session?.role === 'admin' || publicMemberPredictionKey
+                ? 'admin'
+                : 'viewer',
           }
         : {}),
     },
@@ -390,7 +565,9 @@ async function proxyJsonRequest(
     const contentType = response.headers.get('content-type') || '';
 
     if (contentType.includes('application/json')) {
-      const data = await response.json();
+      const data = allowPublicWorldCupOverview
+        ? censorWorldCupOverview(await response.json())
+        : await response.json();
       return NextResponse.json(data, { status: response.status });
     }
 

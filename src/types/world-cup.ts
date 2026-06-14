@@ -64,6 +64,7 @@ export interface WorldCupMatchPayload {
   time: string;
   homeTeam: string;
   awayTeam: string;
+  status?: WorldCupMatchStatus;
 }
 
 export interface WorldCupMember {

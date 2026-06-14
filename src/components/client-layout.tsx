@@ -56,6 +56,16 @@ function ProtectedLayout({ children }: { children: React.ReactNode }) {
     return <>{children}</>;
   }
 
+  if (pathname === '/world-cup' && !predictionKeyChecked) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-design-page">
+        <div
+          className="h-10 w-10 animate-spin rounded-full border-[3px] border-design-muted border-t-design-primary"
+        />
+      </div>
+    );
+  }
+
   if (isLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-design-page">
