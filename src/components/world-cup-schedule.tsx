@@ -132,6 +132,11 @@ function scoreToPick(match: WorldCupScheduleMatch): WorldCupPickValue | '' {
   return '0';
 }
 
+function scoreToResult(match: WorldCupScheduleMatch): WorldCupOutcome | null {
+  const pick = scoreToPick(match);
+  return pickToOutcome(pick);
+}
+
 function resultPick(
   match: WorldCupScheduleMatch,
   backendMatch?: WorldCupMatch
@@ -151,8 +156,8 @@ function fallbackBackendMatch(
     time: backendMatch?.time ?? match.vietnamTimeLabel,
     homeTeam: backendMatch?.homeTeam ?? match.team1,
     awayTeam: backendMatch?.awayTeam ?? match.team2,
-    status: backendMatch?.status ?? 'OPEN',
-    result: backendMatch?.result ?? null,
+    status: backendMatch?.status ?? (match.score?.ft ? 'SETTLED' : 'OPEN'),
+    result: backendMatch?.result ?? scoreToResult(match),
     ...overrides,
   };
 }
@@ -581,16 +586,11 @@ export function WorldCupSchedule({
                 {group.matches.map(match => {
                   const id = scheduleMatchId(match);
                   const backendMatch = backendMatchById.get(id);
-                  const isClosed = backendMatch
-                    ? isWorldCupPredictionClosed(backendMatch)
-                    : Boolean(match.score?.ft);
+                  const effectiveMatch = fallbackBackendMatch(match, backendMatch);
+                  const isClosed = isWorldCupPredictionClosed(effectiveMatch);
                   const value = drafts[id] ?? predictionPick(predictions[id]);
                   const adminBusy = savingAdminMatchId === id;
-                  const effectiveStatus = backendMatch
-                    ? getWorldCupEffectiveStatus(backendMatch)
-                    : match.score?.ft
-                      ? 'SETTLED'
-                      : 'OPEN';
+                  const effectiveStatus = getWorldCupEffectiveStatus(effectiveMatch);
                   const isPredictionOpen = effectiveStatus === 'OPEN';
                   return (
                     <tr
@@ -700,16 +700,11 @@ export function WorldCupSchedule({
             {group.matches.map(match => {
               const id = scheduleMatchId(match);
               const backendMatch = backendMatchById.get(id);
-              const isClosed = backendMatch
-                ? isWorldCupPredictionClosed(backendMatch)
-                : Boolean(match.score?.ft);
+              const effectiveMatch = fallbackBackendMatch(match, backendMatch);
+              const isClosed = isWorldCupPredictionClosed(effectiveMatch);
               const value = drafts[id] ?? predictionPick(predictions[id]);
               const adminBusy = savingAdminMatchId === id;
-              const effectiveStatus = backendMatch
-                ? getWorldCupEffectiveStatus(backendMatch)
-                : match.score?.ft
-                  ? 'SETTLED'
-                  : 'OPEN';
+              const effectiveStatus = getWorldCupEffectiveStatus(effectiveMatch);
               const isPredictionOpen = effectiveStatus === 'OPEN';
               return (
                 <article

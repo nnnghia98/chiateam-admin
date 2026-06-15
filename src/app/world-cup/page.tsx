@@ -1,7 +1,7 @@
 import worldCupData from '@/data/world-cup-2026.json';
 import { WorldCupMemberManager } from '@/components/world-cup-member-manager';
+import { WorldCupPredictionOverview } from '@/components/world-cup-prediction-overview';
 import { WorldCupSchedule } from '@/components/world-cup-schedule';
-import { WorldCupSummary } from '@/components/world-cup-summary';
 
 type RawWorldCupMatch = {
   round: string;
@@ -111,17 +111,11 @@ function groupByVietnamDate(matches: ScheduleMatch[]) {
 
 const schedule = normalizeMatches(worldCupData.matches as RawWorldCupMatch[]);
 const scheduleGroups = groupByVietnamDate(schedule);
-const groupStageMatches = schedule.filter(match => match.group).length;
-const knockoutMatches = schedule.length - groupStageMatches;
 
 export default function WorldCupPage() {
   return (
     <div className="mx-auto w-full max-w-[1600px] space-y-6 px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
-      <WorldCupSummary
-        totalMatches={schedule.length}
-        groupStageMatches={groupStageMatches}
-        knockoutMatches={knockoutMatches}
-      />
+      <WorldCupPredictionOverview groups={scheduleGroups} />
 
       <WorldCupMemberManager />
 

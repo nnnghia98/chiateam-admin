@@ -176,6 +176,12 @@ const en = {
   'worldCup.copyPassCode': 'Copy pass code for {{name}}',
   'worldCup.regeneratePassCode': 'Regenerate pass code for {{name}}',
   'worldCup.deleteMember': 'Delete {{name}}',
+  'worldCup.predictionOverview': 'Full prediction schedule',
+  'worldCup.predictionOverviewHelp':
+    'All member picks are hidden until each match has a result.',
+  'worldCup.loadingPredictionOverview': 'Loading prediction overview...',
+  'worldCup.loadPredictionOverviewError':
+    'Could not load prediction overview.',
   'memberPrediction.privateLink': 'Private prediction link for',
   'memberPrediction.instructions':
     'Choose `1` for Team 1, `2` for Team 2, or `0` for draw.',
@@ -368,6 +374,12 @@ const vi: Record<TranslationKey, string> = {
   'worldCup.copyPassCode': 'Sao chép mã của {{name}}',
   'worldCup.regeneratePassCode': 'Cấp lại mã cho {{name}}',
   'worldCup.deleteMember': 'Xóa {{name}}',
+  'worldCup.predictionOverview': 'Toàn bộ lịch dự đoán',
+  'worldCup.predictionOverviewHelp':
+    'Dự đoán của thành viên được ẩn cho tới khi trận có kết quả.',
+  'worldCup.loadingPredictionOverview': 'Đang tải tổng quan dự đoán...',
+  'worldCup.loadPredictionOverviewError':
+    'Không thể tải tổng quan dự đoán.',
   'memberPrediction.privateLink': 'Link dự đoán riêng cho',
   'memberPrediction.instructions':
     'Chọn `1` cho Đội 1, `2` cho Đội 2, hoặc `0` cho hòa.',
