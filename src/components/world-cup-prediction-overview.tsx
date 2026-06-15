@@ -316,27 +316,27 @@ export function WorldCupPredictionOverview({
           {t('worldCup.loadingPredictionOverview')}
         </div>
       ) : (
-        <div className="overflow-x-auto">
+        <div className="max-h-[min(34rem,calc(100vh-14rem))] overflow-auto">
           <table className="w-full min-w-[980px] border-collapse text-sm">
             <thead>
               <tr className="border-b border-design-border-soft bg-design-muted">
-                <th className="sticky left-0 z-10 w-20 bg-design-muted px-4 py-3 text-left text-xs font-bold uppercase tracking-[0.14em] text-design-secondary">
+                <th className="sticky left-0 top-0 z-30 w-20 bg-design-muted px-4 py-3 text-left text-xs font-bold uppercase tracking-[0.14em] text-design-secondary">
                   {t('worldCup.round')}
                 </th>
-                <th className="w-32 px-4 py-3 text-left text-xs font-bold uppercase tracking-[0.14em] text-design-secondary">
+                <th className="sticky top-0 z-20 w-32 bg-design-muted px-4 py-3 text-left text-xs font-bold uppercase tracking-[0.14em] text-design-secondary">
                   {t('worldCup.vnTime')}
                 </th>
-                <th className="min-w-72 px-4 py-3 text-center text-xs font-bold uppercase tracking-[0.14em] text-design-secondary">
+                <th className="sticky top-0 z-20 min-w-72 bg-design-muted px-4 py-3 text-center text-xs font-bold uppercase tracking-[0.14em] text-design-secondary">
                   {t('common.match')}
                 </th>
-                <th className="w-24 px-4 py-3 text-center text-xs font-bold uppercase tracking-[0.14em] text-design-secondary">
+                <th className="sticky top-0 z-20 w-24 bg-design-muted px-4 py-3 text-center text-xs font-bold uppercase tracking-[0.14em] text-design-secondary">
                   {t('common.score')}
                 </th>
                 {sortedMembers.map(member => (
                   <th
                     key={memberId(member)}
-                  className="w-32 px-4 py-3 text-center"
-                >
+                    className="sticky top-0 z-20 w-32 bg-design-muted px-4 py-3 text-center"
+                  >
                     <span className="block whitespace-nowrap text-xs font-bold uppercase tracking-[0.14em] text-design-secondary">
                       {member.name ?? memberId(member)}
                     </span>
