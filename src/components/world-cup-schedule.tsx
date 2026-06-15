@@ -732,6 +732,7 @@ export function WorldCupSchedule({
                   const scoreDraft =
                     scoreDrafts[id] ?? scoreDraftFromMatch(match, backendMatch);
                   const adminBusy = savingAdminMatchId === id;
+                  const predictionBusy = savingMatchId === id;
                   const effectiveStatus = getWorldCupEffectiveStatus(effectiveMatch);
                   const isPredictionOpen = effectiveStatus === 'OPEN';
                   const resultTone =
@@ -831,22 +832,30 @@ export function WorldCupSchedule({
                         )}
                       </td>
                       <td className="px-4 py-4 text-center">
-                        <select
-                          value={value}
-                          disabled={!isLoggedIn || isClosed || Boolean(savingMatchId)}
-                          onChange={event =>
-                            void savePrediction(
-                              match,
-                              event.target.value as WorldCupPickValue
-                            )
-                          }
-                          className="h-9 w-full rounded-airbnb border border-design-border bg-design-card px-2 text-center text-sm font-bold text-design-text outline-none focus:border-design-primary focus:ring-2 focus:ring-design-primary/20 disabled:cursor-not-allowed disabled:opacity-55"
-                        >
-                          <option value="">-</option>
-                          <option value="1">1</option>
-                          <option value="2">2</option>
-                          <option value="0">0</option>
-                        </select>
+                        <div className="relative">
+                          <select
+                            value={value}
+                            disabled={!isLoggedIn || isClosed || Boolean(savingMatchId)}
+                            onChange={event =>
+                              void savePrediction(
+                                match,
+                                event.target.value as WorldCupPickValue
+                              )
+                            }
+                            className="h-9 w-full rounded-airbnb border border-design-border bg-design-card px-2 text-center text-sm font-bold text-design-text outline-none focus:border-design-primary focus:ring-2 focus:ring-design-primary/20 disabled:cursor-not-allowed disabled:opacity-55"
+                            aria-busy={predictionBusy}
+                          >
+                            <option value="">-</option>
+                            <option value="1">1</option>
+                            <option value="2">2</option>
+                            <option value="0">0</option>
+                          </select>
+                          {predictionBusy && (
+                            <span className="pointer-events-none absolute inset-y-0 right-7 flex items-center text-design-primary">
+                              <LoaderCircle className="h-4 w-4 animate-spin" />
+                            </span>
+                          )}
+                        </div>
                       </td>
                       {canEdit && (
                         <td className="px-4 py-4">
@@ -894,6 +903,7 @@ export function WorldCupSchedule({
               const scoreDraft =
                 scoreDrafts[id] ?? scoreDraftFromMatch(match, backendMatch);
               const adminBusy = savingAdminMatchId === id;
+              const predictionBusy = savingMatchId === id;
               const effectiveStatus = getWorldCupEffectiveStatus(effectiveMatch);
               const isPredictionOpen = effectiveStatus === 'OPEN';
               const resultTone =
@@ -1001,23 +1011,31 @@ export function WorldCupSchedule({
                     <Label htmlFor={`prediction-${id}`}>
                       {t('worldCup.predict')}
                     </Label>
-                    <select
-                      id={`prediction-${id}`}
-                      value={value}
-                      disabled={!member || isClosed || Boolean(savingMatchId)}
-                      onChange={event =>
-                        void savePrediction(
-                          match,
-                          event.target.value as WorldCupPickValue
-                        )
-                      }
-                      className="h-10 w-full rounded-airbnb border border-design-border bg-design-card px-3 text-sm font-bold text-design-text outline-none focus:border-design-primary focus:ring-2 focus:ring-design-primary/20 disabled:cursor-not-allowed disabled:opacity-55"
-                    >
-                      <option value="">-</option>
-                      <option value="1">1</option>
-                      <option value="2">2</option>
-                      <option value="0">0</option>
-                    </select>
+                    <div className="relative">
+                      <select
+                        id={`prediction-${id}`}
+                        value={value}
+                        disabled={!member || isClosed || Boolean(savingMatchId)}
+                        onChange={event =>
+                          void savePrediction(
+                            match,
+                            event.target.value as WorldCupPickValue
+                          )
+                        }
+                        className="h-10 w-full rounded-airbnb border border-design-border bg-design-card px-3 text-sm font-bold text-design-text outline-none focus:border-design-primary focus:ring-2 focus:ring-design-primary/20 disabled:cursor-not-allowed disabled:opacity-55"
+                        aria-busy={predictionBusy}
+                      >
+                        <option value="">-</option>
+                        <option value="1">1</option>
+                        <option value="2">2</option>
+                        <option value="0">0</option>
+                      </select>
+                      {predictionBusy && (
+                        <span className="pointer-events-none absolute inset-y-0 right-8 flex items-center text-design-primary">
+                          <LoaderCircle className="h-4 w-4 animate-spin" />
+                        </span>
+                      )}
+                    </div>
                   </div>
                   {canEdit && (
                     <div className="mt-4">

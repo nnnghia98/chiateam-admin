@@ -24,6 +24,8 @@ type PredictionMatrix = Record<
   Record<string, WorldCupPredictionEntry | null>
 >;
 
+const VIETNAM_OFFSET_MS = 7 * 60 * 60 * 1000;
+
 function scheduleMatchId(match: WorldCupScheduleMatch) {
   return String(match.num ?? match.matchNumber);
 }
@@ -167,10 +169,11 @@ function shouldRevealPredictions(
   match: WorldCupScheduleMatch,
   _backendMatch?: WorldCupMatch
 ) {
+  const vietnamNow = Date.now() + VIETNAM_OFFSET_MS;
   return (
     Number.isFinite(match.vietnamTimestamp) &&
     match.vietnamTimestamp !== Number.MAX_SAFE_INTEGER &&
-    Date.now() >= match.vietnamTimestamp
+    vietnamNow >= match.vietnamTimestamp
   );
 }
 

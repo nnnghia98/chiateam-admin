@@ -41,6 +41,7 @@ type RawWorldCupScheduleMatch = {
 };
 
 const VIETNAM_OFFSET_HOURS = 7;
+const VIETNAM_OFFSET_MS = VIETNAM_OFFSET_HOURS * 60 * 60 * 1000;
 
 function parseScheduleKickoff(date: string, time: string) {
   const dateParts = date.match(/^(\d{4})-(\d{2})-(\d{2})$/);
@@ -193,8 +194,12 @@ function hasPredictionValue(entry: Record<string, unknown>) {
 
 function shouldRevealWorldCupPredictions(match: Record<string, unknown>) {
   const matchId = String(match.id ?? match.matchNumber ?? '');
-  const start =
-    worldCupScheduleStartById.get(matchId) ?? worldCupMatchStartTime(match as any);
+  const scheduleStart = worldCupScheduleStartById.get(matchId);
+  if (scheduleStart !== undefined) {
+    return Date.now() + VIETNAM_OFFSET_MS >= scheduleStart;
+  }
+
+  const start = worldCupMatchStartTime(match as any);
   return start !== null && Date.now() >= start;
 }
 
