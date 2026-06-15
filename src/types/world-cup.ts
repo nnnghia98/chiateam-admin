@@ -9,6 +9,9 @@ export interface WorldCupMatch {
   time: string;
   homeTeam: string;
   awayTeam: string;
+  homeScore?: number | null;
+  awayScore?: number | null;
+  score?: string | null;
   status?: WorldCupMatchStatus;
   result?: WorldCupOutcome | null;
   createdBy?: number | null;
@@ -64,7 +67,18 @@ export interface WorldCupMatchPayload {
   time: string;
   homeTeam: string;
   awayTeam: string;
+  homeScore?: number | null;
+  awayScore?: number | null;
+  score?: string | null;
   status?: WorldCupMatchStatus;
+}
+
+export interface WorldCupMatchResultPayload {
+  homeScore: number;
+  awayScore: number;
+  score: string;
+  result: WorldCupOutcome;
+  status: 'SETTLED';
 }
 
 export interface WorldCupMember {

@@ -3,6 +3,7 @@ import type {
   WorldCupMatch,
   WorldCupMatchDetail,
   WorldCupMatchPayload,
+  WorldCupMatchResultPayload,
   WorldCupMatchStatus,
   WorldCupMemberKey,
   WorldCupMemberPredictionResponse,
@@ -173,12 +174,15 @@ class ApiClient {
     );
   }
 
-  async setWorldCupMatchResult(matchId: string, result: WorldCupOutcome) {
+  async setWorldCupMatchResult(
+    matchId: string,
+    result: WorldCupMatchResultPayload
+  ) {
     return this.fetch<WorldCupMatchDetail>(
       `/api/world-cup-predictions/matches/${encodeURIComponent(matchId)}/result`,
       {
         method: 'POST',
-        body: JSON.stringify({ result }),
+        body: JSON.stringify(result),
       }
     );
   }

@@ -6,6 +6,7 @@ import { apiClient } from '@/lib/api-client';
 import { getWorldCupEffectiveStatus } from '@/lib/world-cup-time';
 import { useAuth } from '@/contexts/auth-context';
 import { useI18n } from '@/contexts/i18n-context';
+import { cn } from '@/lib/utils';
 import type {
   WorldCupMatch,
   WorldCupMember,
@@ -75,6 +76,28 @@ function scoreToResult(match: WorldCupScheduleMatch): WorldCupOutcome | null {
   return 0;
 }
 
+function formatDateShort(dateKey: string) {
+  const [year, month, day] = dateKey.split('-');
+  if (!year || !month || !day) return dateKey;
+  return `${day.padStart(2, '0')}/${month.padStart(2, '0')}/${year}`;
+}
+
+function teamResultClass(
+  result: WorldCupOutcome | null | undefined,
+  side: 'home' | 'away'
+) {
+  const isWinner = (result === 1 && side === 'home') || (result === 2 && side === 'away');
+  const isLoser = (result === 1 && side === 'away') || (result === 2 && side === 'home');
+
+  if (isWinner) {
+    return 'text-emerald-700 dark:text-emerald-300';
+  }
+  if (isLoser) {
+    return 'text-design-error dark:text-[#ff8a9d]';
+  }
+  return 'text-design-text';
+}
+
 function comparableMatch(
   match: WorldCupScheduleMatch,
   backendMatch?: WorldCupMatch
@@ -86,21 +109,37 @@ function comparableMatch(
     time: backendMatch?.time ?? match.vietnamTimeLabel,
     homeTeam: backendMatch?.homeTeam ?? match.team1,
     awayTeam: backendMatch?.awayTeam ?? match.team2,
+    homeScore: backendMatch?.homeScore ?? match.score?.ft?.[0] ?? null,
+    awayScore: backendMatch?.awayScore ?? match.score?.ft?.[1] ?? null,
+    score:
+      backendMatch?.score ??
+      (match.score?.ft ? `${match.score.ft[0]}-${match.score.ft[1]}` : null),
     status: backendMatch?.status ?? (match.score?.ft ? 'SETTLED' : 'OPEN'),
     result: backendMatch?.result ?? scoreToResult(match),
   };
 }
 
 function scoreLabel(match: WorldCupScheduleMatch, backendMatch?: WorldCupMatch) {
-  if (backendMatch?.result === 0) return '0';
-  if (backendMatch?.result === 1) return '1';
-  if (backendMatch?.result === 2) return '2';
+  if (backendMatch?.score) return backendMatch.score;
+  if (
+    typeof backendMatch?.homeScore === 'number' &&
+    typeof backendMatch?.awayScore === 'number'
+  ) {
+    return `${backendMatch.homeScore}-${backendMatch.awayScore}`;
+  }
   if (!match.score?.ft) return '-';
   return `${match.score.ft[0]}-${match.score.ft[1]}`;
 }
 
-function isSettled(match: WorldCupScheduleMatch, backendMatch?: WorldCupMatch) {
-  return getWorldCupEffectiveStatus(comparableMatch(match, backendMatch)) === 'SETTLED';
+function shouldRevealPredictions(
+  match: WorldCupScheduleMatch,
+  _backendMatch?: WorldCupMatch
+) {
+  return (
+    Number.isFinite(match.vietnamTimestamp) &&
+    match.vietnamTimestamp !== Number.MAX_SAFE_INTEGER &&
+    Date.now() >= match.vietnamTimestamp
+  );
 }
 
 export function WorldCupPredictionOverview({
@@ -113,6 +152,7 @@ export function WorldCupPredictionOverview({
   const [members, setMembers] = useState<WorldCupMember[]>([]);
   const [backendMatches, setBackendMatches] = useState<WorldCupMatch[]>([]);
   const [predictions, setPredictions] = useState<PredictionMatrix>({});
+  const [totals, setTotals] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -146,6 +186,27 @@ export function WorldCupPredictionOverview({
     [members]
   );
 
+  const memberTotal = useCallback(
+    (member: WorldCupMember) => {
+      const candidateKeys = [
+        memberId(member),
+        member.id,
+        member.memberId,
+        member.userId,
+        member.playerNumber !== undefined && member.playerNumber !== null
+          ? String(member.playerNumber)
+          : undefined,
+      ].filter((key): key is string => Boolean(key));
+
+      for (const key of candidateKeys) {
+        const value = totals[key];
+        if (typeof value === 'number') return value;
+      }
+      return 0;
+    },
+    [totals]
+  );
+
   const loadOverview = useCallback(async () => {
     if (!isAuthenticated) return;
 
@@ -156,6 +217,7 @@ export function WorldCupPredictionOverview({
       setBackendMatches(normalizeMatches(response.matches));
       setMembers(normalizeMembers(response.members));
       setPredictions((response.predictions ?? response.entries ?? {}) as PredictionMatrix);
+      setTotals(response.totals ?? {});
     } catch (loadError) {
       console.error('Failed to load World Cup prediction overview:', loadError);
       setError(t('worldCup.loadPredictionOverviewError'));
@@ -207,7 +269,7 @@ export function WorldCupPredictionOverview({
             <thead>
               <tr className="border-b border-design-border-soft bg-design-muted">
                 <th className="sticky left-0 z-10 w-20 bg-design-muted px-4 py-3 text-left text-xs font-bold uppercase tracking-[0.14em] text-design-secondary">
-                  {t('worldCup.no')}
+                  {t('worldCup.round')}
                 </th>
                 <th className="w-32 px-4 py-3 text-left text-xs font-bold uppercase tracking-[0.14em] text-design-secondary">
                   {t('worldCup.vnTime')}
@@ -221,18 +283,28 @@ export function WorldCupPredictionOverview({
                 {sortedMembers.map(member => (
                   <th
                     key={memberId(member)}
-                    className="w-28 px-4 py-3 text-center text-xs font-bold uppercase tracking-[0.14em] text-design-secondary"
-                  >
-                    {member.name ?? memberId(member)}
+                  className="w-32 px-4 py-3 text-center"
+                >
+                    <span className="block whitespace-nowrap text-xs font-bold uppercase tracking-[0.14em] text-design-secondary">
+                      {member.name ?? memberId(member)}
+                    </span>
+                    <span className="mt-1 inline-flex rounded-full bg-design-active px-2.5 py-0.5 text-xs font-black tracking-normal text-design-primary-strong">
+                      {memberTotal(member)}
+                    </span>
                   </th>
                 ))}
               </tr>
             </thead>
             <tbody>
-              {allMatches.map(match => {
+              {allMatches.map((match, index) => {
                 const id = scheduleMatchId(match);
                 const backendMatch = backendMatchById.get(id);
-                const settled = isSettled(match, backendMatch);
+                const revealPredictions = shouldRevealPredictions(match, backendMatch);
+                const comparable = comparableMatch(match, backendMatch);
+                const resultTone =
+                  getWorldCupEffectiveStatus(comparable) === 'SETTLED'
+                    ? comparable.result
+                    : null;
 
                 return (
                   <tr
@@ -240,25 +312,35 @@ export function WorldCupPredictionOverview({
                     className="border-b border-design-border-soft last:border-b-0 hover:bg-design-muted/50"
                   >
                     <td className="sticky left-0 z-10 bg-design-card px-4 py-4 font-black text-design-secondary">
-                      {match.matchNumber}
+                      {t('worldCup.round')} {index + 1}
                     </td>
                     <td className="px-4 py-4">
                       <p className="text-base font-black text-design-text">
                         {match.vietnamTimeLabel}
                       </p>
                       <p className="mt-1 text-xs text-design-secondary">
-                        {match.vietnamDateKey}
+                        {formatDateShort(match.vietnamDateKey)}
                       </p>
                     </td>
                     <td className="px-4 py-4">
                       <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3">
-                        <p className="truncate text-right font-bold text-design-text">
+                        <p
+                          className={cn(
+                            'max-w-full justify-self-end truncate text-right font-bold',
+                            teamResultClass(resultTone, 'home')
+                          )}
+                        >
                           {match.team1}
                         </p>
                         <span className="rounded-full border border-design-border-soft bg-design-card px-2 py-1 text-xs font-black text-design-secondary">
                           vs
                         </span>
-                        <p className="truncate font-bold text-design-text">
+                        <p
+                          className={cn(
+                            'max-w-full justify-self-start truncate font-bold',
+                            teamResultClass(resultTone, 'away')
+                          )}
+                        >
                           {match.team2}
                         </p>
                       </div>
@@ -276,7 +358,7 @@ export function WorldCupPredictionOverview({
                           key={`${id}-${idMember}`}
                           className="px-4 py-4 text-center font-black text-design-text"
                         >
-                          {settled ? predictionValue(entry) : '***'}
+                          {revealPredictions ? predictionValue(entry) : '***'}
                         </td>
                       );
                     })}

@@ -119,7 +119,7 @@ const en = {
     'Match number must be a positive number',
   'worldCup.saveFixtureError': 'Failed to save fixture',
   'worldCup.loadError': 'Failed to load World Cup predictions',
-  'worldCup.scoreFormat': 'Result must be 0, 1, or 2',
+  'worldCup.scoreFormat': 'Enter whole-number goals for both teams',
   'worldCup.setResultError': 'Failed to set result',
   'worldCup.deleteFixtureConfirm':
     'Delete fixture {{id}}? Prediction entries may also be removed.',
@@ -317,7 +317,7 @@ const vi: Record<TranslationKey, string> = {
     'Số trận cần là số dương',
   'worldCup.saveFixtureError': 'Không thể lưu trận',
   'worldCup.loadError': 'Không thể tải dự đoán World Cup',
-  'worldCup.scoreFormat': 'Kết quả cần là 0, 1 hoặc 2',
+  'worldCup.scoreFormat': 'Nhập số bàn thắng hợp lệ cho cả hai đội',
   'worldCup.setResultError': 'Không thể lưu kết quả',
   'worldCup.deleteFixtureConfirm':
     'Xóa trận {{id}}? Các dự đoán có thể cũng bị xóa.',

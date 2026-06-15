@@ -9,6 +9,7 @@ import {
   Lock,
   MapPin,
   RefreshCw,
+  Save,
   Unlock,
 } from 'lucide-react';
 import { apiClient } from '@/lib/api-client';
@@ -19,6 +20,7 @@ import {
 import { useAuth } from '@/contexts/auth-context';
 import { useI18n } from '@/contexts/i18n-context';
 import type { Locale } from '@/lib/i18n';
+import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -59,6 +61,7 @@ export type WorldCupScheduleGroup = {
 
 type PredictionMap = Record<string, WorldCupPredictionEntry | null>;
 type DraftMap = Record<string, WorldCupPickValue | ''>;
+type ScoreDraftMap = Record<string, { home: string; away: string }>;
 
 function localDraftsKey(passCode: string) {
   return `worldCupPredictionDrafts:${passCode}`;
@@ -67,6 +70,17 @@ function localDraftsKey(passCode: string) {
 function scoreLabel(match: WorldCupScheduleMatch) {
   if (!match.score?.ft) return '-';
   return `${match.score.ft[0]}-${match.score.ft[1]}`;
+}
+
+function matchScoreLabel(match: WorldCupScheduleMatch, backendMatch?: WorldCupMatch) {
+  if (backendMatch?.score) return backendMatch.score;
+  if (
+    typeof backendMatch?.homeScore === 'number' &&
+    typeof backendMatch?.awayScore === 'number'
+  ) {
+    return `${backendMatch.homeScore}-${backendMatch.awayScore}`;
+  }
+  return scoreLabel(match);
 }
 
 function stageLabel(match: WorldCupScheduleMatch, t: ReturnType<typeof useI18n>['t']) {
@@ -137,11 +151,26 @@ function scoreToResult(match: WorldCupScheduleMatch): WorldCupOutcome | null {
   return pickToOutcome(pick);
 }
 
-function resultPick(
-  match: WorldCupScheduleMatch,
-  backendMatch?: WorldCupMatch
-): WorldCupPickValue | '' {
-  return outcomeToPick(backendMatch?.result) || scoreToPick(match);
+function goalsToResult(homeScore: number, awayScore: number): WorldCupOutcome {
+  if (homeScore > awayScore) return 1;
+  if (awayScore > homeScore) return 2;
+  return 0;
+}
+
+function teamResultClass(
+  result: WorldCupOutcome | null | undefined,
+  side: 'home' | 'away'
+) {
+  const isWinner = (result === 1 && side === 'home') || (result === 2 && side === 'away');
+  const isLoser = (result === 1 && side === 'away') || (result === 2 && side === 'home');
+
+  if (isWinner) {
+    return 'text-emerald-700 dark:text-emerald-300';
+  }
+  if (isLoser) {
+    return 'text-design-error dark:text-[#ff8a9d]';
+  }
+  return 'text-design-text';
 }
 
 function fallbackBackendMatch(
@@ -156,9 +185,32 @@ function fallbackBackendMatch(
     time: backendMatch?.time ?? match.vietnamTimeLabel,
     homeTeam: backendMatch?.homeTeam ?? match.team1,
     awayTeam: backendMatch?.awayTeam ?? match.team2,
+    homeScore: backendMatch?.homeScore ?? match.score?.ft?.[0] ?? null,
+    awayScore: backendMatch?.awayScore ?? match.score?.ft?.[1] ?? null,
+    score: backendMatch?.score ?? (match.score?.ft ? scoreLabel(match) : null),
     status: backendMatch?.status ?? (match.score?.ft ? 'SETTLED' : 'OPEN'),
     result: backendMatch?.result ?? scoreToResult(match),
     ...overrides,
+  };
+}
+
+function scoreDraftFromMatch(
+  match: WorldCupScheduleMatch,
+  backendMatch?: WorldCupMatch
+) {
+  return {
+    home:
+      typeof backendMatch?.homeScore === 'number'
+        ? String(backendMatch.homeScore)
+        : match.score?.ft
+          ? String(match.score.ft[0])
+          : '',
+    away:
+      typeof backendMatch?.awayScore === 'number'
+        ? String(backendMatch.awayScore)
+        : match.score?.ft
+          ? String(match.score.ft[1])
+          : '',
   };
 }
 
@@ -239,6 +291,12 @@ function formatDateLabel(dateKey: string, locale: Locale) {
   }).format(new Date(Date.UTC(year, month - 1, day)));
 }
 
+function formatDateShort(dateKey: string) {
+  const [year, month, day] = dateKey.split('-');
+  if (!year || !month || !day) return dateKey;
+  return `${day.padStart(2, '0')}/${month.padStart(2, '0')}/${year}`;
+}
+
 export function WorldCupSchedule({
   groups,
 }: {
@@ -251,11 +309,16 @@ export function WorldCupSchedule({
   const [backendMatches, setBackendMatches] = useState<WorldCupMatch[]>([]);
   const [predictions, setPredictions] = useState<PredictionMap>({});
   const [drafts, setDrafts] = useState<Record<string, WorldCupPickValue | ''>>({});
+  const [scoreDrafts, setScoreDrafts] = useState<ScoreDraftMap>({});
   const [loading, setLoading] = useState(false);
   const [savingMatchId, setSavingMatchId] = useState<string | null>(null);
   const [savingAdminMatchId, setSavingAdminMatchId] = useState<string | null>(null);
   const [error, setError] = useState('');
   const isLoggedIn = Boolean(member);
+  const allMatches = useMemo(
+    () => groups.flatMap(group => group.matches),
+    [groups]
+  );
 
   const backendMatchById = useMemo(() => {
     const byId = new Map<string, WorldCupMatch>();
@@ -344,6 +407,27 @@ export function WorldCupSchedule({
     void loadAdminMatches();
   }, [loadAdminMatches]);
 
+  useEffect(() => {
+    if (!canEdit) return;
+
+    setScoreDrafts(current => {
+      const next = { ...current };
+      allMatches.forEach(match => {
+        const id = scheduleMatchId(match);
+        const backendMatch = backendMatchById.get(id);
+        const backendDraft = scoreDraftFromMatch(match, backendMatch);
+        const currentDraft = next[id];
+        const hasCurrentDraft = Boolean(currentDraft?.home || currentDraft?.away);
+        const hasBackendDraft = Boolean(backendDraft.home || backendDraft.away);
+
+        if (!currentDraft || (!hasCurrentDraft && hasBackendDraft)) {
+          next[id] = backendDraft;
+        }
+      });
+      return next;
+    });
+  }, [allMatches, backendMatchById, canEdit]);
+
   const savePrediction = async (
     match: WorldCupScheduleMatch,
     pick: WorldCupPickValue
@@ -399,24 +483,43 @@ export function WorldCupSchedule({
   };
 
   const updateMatchResult = async (
-    match: WorldCupScheduleMatch,
-    resultValue: string
+    match: WorldCupScheduleMatch
   ) => {
-    const result = pickToOutcome(resultValue);
-    if (result === null) {
+    const id = scheduleMatchId(match);
+    const scoreDraft =
+      scoreDrafts[id] ?? scoreDraftFromMatch(match, backendMatchById.get(id));
+    const homeScore = Number(scoreDraft.home);
+    const awayScore = Number(scoreDraft.away);
+
+    if (
+      !Number.isInteger(homeScore) ||
+      !Number.isInteger(awayScore) ||
+      homeScore < 0 ||
+      awayScore < 0
+    ) {
       setError(t('worldCup.scoreFormat'));
       return;
     }
 
-    const id = scheduleMatchId(match);
+    const result = goalsToResult(homeScore, awayScore);
+    const score = `${homeScore}-${awayScore}`;
     const backendMatch = backendMatchById.get(id);
     try {
       setSavingAdminMatchId(id);
       setError('');
-      const response = await apiClient.setWorldCupMatchResult(id, result);
+      const response = await apiClient.setWorldCupMatchResult(id, {
+        homeScore,
+        awayScore,
+        score,
+        result,
+        status: 'SETTLED',
+      });
       upsertBackendMatch(
         responseMatch(response) ??
           fallbackBackendMatch(match, backendMatch, {
+            homeScore,
+            awayScore,
+            score,
             result,
             status: 'SETTLED',
           })
@@ -427,6 +530,22 @@ export function WorldCupSchedule({
     } finally {
       setSavingAdminMatchId(null);
     }
+  };
+
+  const updateScoreDraft = (
+    matchId: string,
+    side: 'home' | 'away',
+    value: string
+  ) => {
+    const cleanedValue = value.replace(/[^\d]/g, '');
+    setScoreDrafts(current => ({
+      ...current,
+      [matchId]: {
+        home: current[matchId]?.home ?? '',
+        away: current[matchId]?.away ?? '',
+        [side]: cleanedValue,
+      },
+    }));
   };
 
   const updatePredictionStatus = async (
@@ -569,7 +688,7 @@ export function WorldCupSchedule({
                   <th className="px-4 py-3 text-center text-xs font-bold uppercase tracking-[0.14em] text-design-secondary">
                     {t('common.match')}
                   </th>
-                  <th className="w-24 px-4 py-3 text-center text-xs font-bold uppercase tracking-[0.14em] text-design-secondary">
+                  <th className="w-44 px-4 py-3 text-center text-xs font-bold uppercase tracking-[0.14em] text-design-secondary">
                     {t('common.score')}
                   </th>
                   <th className="w-36 px-4 py-3 text-center text-xs font-bold uppercase tracking-[0.14em] text-design-secondary">
@@ -589,9 +708,13 @@ export function WorldCupSchedule({
                   const effectiveMatch = fallbackBackendMatch(match, backendMatch);
                   const isClosed = isWorldCupPredictionClosed(effectiveMatch);
                   const value = drafts[id] ?? predictionPick(predictions[id]);
+                  const scoreDraft =
+                    scoreDrafts[id] ?? scoreDraftFromMatch(match, backendMatch);
                   const adminBusy = savingAdminMatchId === id;
                   const effectiveStatus = getWorldCupEffectiveStatus(effectiveMatch);
                   const isPredictionOpen = effectiveStatus === 'OPEN';
+                  const resultTone =
+                    effectiveStatus === 'SETTLED' ? effectiveMatch.result : null;
                   return (
                     <tr
                       key={`${group.dateKey}-${match.matchNumber}`}
@@ -605,41 +728,84 @@ export function WorldCupSchedule({
                           {match.vietnamTimeLabel}
                         </p>
                         <p className="mt-1 text-xs text-design-secondary">
-                          {match.vietnamDateKey}
+                          {formatDateShort(match.vietnamDateKey)}
                         </p>
                       </td>
                       <td className="px-4 py-4">
                         <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3">
-                          <p className="truncate text-right font-bold text-design-text">
+                          <p
+                            className={cn(
+                              'max-w-full justify-self-end truncate text-right font-bold',
+                              teamResultClass(resultTone, 'home')
+                            )}
+                          >
                             {match.team1}
                           </p>
                           <span className="rounded-full border border-design-border-soft bg-design-card px-2 py-1 text-xs font-black text-design-secondary">
                             vs
                           </span>
-                          <p className="truncate font-bold text-design-text">
+                          <p
+                            className={cn(
+                              'max-w-full justify-self-start truncate font-bold',
+                              teamResultClass(resultTone, 'away')
+                            )}
+                          >
                             {match.team2}
                           </p>
                         </div>
                       </td>
                       <td className="px-4 py-4 text-center">
                         {canEdit ? (
-                          <select
-                            value={resultPick(match, backendMatch)}
-                            disabled={adminBusy}
-                            onChange={event =>
-                              void updateMatchResult(match, event.target.value)
-                            }
-                            className="h-9 w-full rounded-airbnb border border-design-border bg-design-card px-2 text-center text-sm font-bold text-design-text outline-none focus:border-design-primary focus:ring-2 focus:ring-design-primary/20 disabled:cursor-not-allowed disabled:opacity-55"
+                          <div
+                            className="grid grid-cols-[2.5rem_auto_2.5rem_auto] items-center justify-center gap-1"
                             aria-label={t('worldCup.setResultFor', { id })}
                           >
-                            <option value="">-</option>
-                            <option value="1">1</option>
-                            <option value="2">2</option>
-                            <option value="0">0</option>
-                          </select>
+                            <Input
+                              type="text"
+                              value={scoreDraft.home}
+                              disabled={adminBusy}
+                              onChange={event =>
+                                updateScoreDraft(id, 'home', event.target.value)
+                              }
+                              className="h-9 w-10 px-2 text-center text-sm font-black"
+                              inputMode="numeric"
+                              pattern="[0-9]*"
+                              maxLength={2}
+                              aria-label={`${match.team1} ${t('common.score')}`}
+                            />
+                            <span className="font-black text-design-secondary">-</span>
+                            <Input
+                              type="text"
+                              value={scoreDraft.away}
+                              disabled={adminBusy}
+                              onChange={event =>
+                                updateScoreDraft(id, 'away', event.target.value)
+                              }
+                              className="h-9 w-10 px-2 text-center text-sm font-black"
+                              inputMode="numeric"
+                              pattern="[0-9]*"
+                              maxLength={2}
+                              aria-label={`${match.team2} ${t('common.score')}`}
+                            />
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="icon"
+                              disabled={adminBusy}
+                              onClick={() => void updateMatchResult(match)}
+                              className="h-9 w-9"
+                              aria-label={t('worldCup.saveResult')}
+                            >
+                              {adminBusy ? (
+                                <LoaderCircle className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <Save className="h-4 w-4" />
+                              )}
+                            </Button>
+                          </div>
                         ) : (
                           <span className="inline-flex min-w-16 justify-center rounded-full bg-design-active px-3 py-1 text-sm font-black text-design-primary-strong">
-                            {scoreLabel(match)}
+                            {matchScoreLabel(match, backendMatch)}
                           </span>
                         )}
                       </td>
@@ -667,7 +833,7 @@ export function WorldCupSchedule({
                             type="button"
                             variant="outline"
                             size="sm"
-                            disabled={adminBusy || effectiveStatus === 'SETTLED'}
+                            disabled={adminBusy}
                             onClick={() =>
                               void updatePredictionStatus(
                                 match,
@@ -703,9 +869,13 @@ export function WorldCupSchedule({
               const effectiveMatch = fallbackBackendMatch(match, backendMatch);
               const isClosed = isWorldCupPredictionClosed(effectiveMatch);
               const value = drafts[id] ?? predictionPick(predictions[id]);
+              const scoreDraft =
+                scoreDrafts[id] ?? scoreDraftFromMatch(match, backendMatch);
               const adminBusy = savingAdminMatchId === id;
               const effectiveStatus = getWorldCupEffectiveStatus(effectiveMatch);
               const isPredictionOpen = effectiveStatus === 'OPEN';
+              const resultTone =
+                effectiveStatus === 'SETTLED' ? effectiveMatch.result : null;
               return (
                 <article
                   key={`${group.dateKey}-${match.matchNumber}-mobile`}
@@ -721,35 +891,78 @@ export function WorldCupSchedule({
                       </p>
                     </div>
                     {canEdit ? (
-                      <select
-                        value={resultPick(match, backendMatch)}
-                        disabled={adminBusy}
-                        onChange={event =>
-                          void updateMatchResult(match, event.target.value)
-                        }
-                        className="h-10 rounded-airbnb border border-design-border bg-design-card px-3 text-sm font-bold text-design-text outline-none focus:border-design-primary focus:ring-2 focus:ring-design-primary/20 disabled:cursor-not-allowed disabled:opacity-55"
+                      <div
+                        className="grid w-44 grid-cols-[1fr_auto_1fr_auto] items-center gap-1"
                         aria-label={t('worldCup.setResultFor', { id })}
                       >
-                        <option value="">-</option>
-                        <option value="1">1</option>
-                        <option value="2">2</option>
-                        <option value="0">0</option>
-                      </select>
+                        <Input
+                          type="text"
+                          value={scoreDraft.home}
+                          disabled={adminBusy}
+                          onChange={event =>
+                            updateScoreDraft(id, 'home', event.target.value)
+                          }
+                          className="h-10 w-10 px-2 text-center text-sm font-black"
+                          inputMode="numeric"
+                          pattern="[0-9]*"
+                          maxLength={2}
+                          aria-label={`${match.team1} ${t('common.score')}`}
+                        />
+                        <span className="font-black text-design-secondary">-</span>
+                        <Input
+                          type="text"
+                          value={scoreDraft.away}
+                          disabled={adminBusy}
+                          onChange={event =>
+                            updateScoreDraft(id, 'away', event.target.value)
+                          }
+                          className="h-10 w-10 px-2 text-center text-sm font-black"
+                          inputMode="numeric"
+                          pattern="[0-9]*"
+                          maxLength={2}
+                          aria-label={`${match.team2} ${t('common.score')}`}
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          disabled={adminBusy}
+                          onClick={() => void updateMatchResult(match)}
+                          className="h-10 w-10"
+                          aria-label={t('worldCup.saveResult')}
+                        >
+                          {adminBusy ? (
+                            <LoaderCircle className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Save className="h-4 w-4" />
+                          )}
+                        </Button>
+                      </div>
                     ) : (
                       <span className="rounded-full bg-design-active px-3 py-1 text-sm font-black text-design-primary-strong">
-                        {scoreLabel(match)}
+                        {matchScoreLabel(match, backendMatch)}
                       </span>
                     )}
                   </div>
 
                   <div className="mt-4 grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2">
-                    <p className="text-right text-base font-black text-design-text">
+                    <p
+                      className={cn(
+                        'max-w-full justify-self-end text-right text-base font-black',
+                        teamResultClass(resultTone, 'home')
+                      )}
+                    >
                       {match.team1}
                     </p>
                     <span className="text-xs font-black uppercase text-design-secondary">
                       vs
                     </span>
-                    <p className="text-base font-black text-design-text">
+                    <p
+                      className={cn(
+                        'max-w-full justify-self-start text-base font-black',
+                        teamResultClass(resultTone, 'away')
+                      )}
+                    >
                       {match.team2}
                     </p>
                   </div>
@@ -759,7 +972,7 @@ export function WorldCupSchedule({
                     {match.ground}
                   </p>
                   <p className="mt-2 text-xs text-design-secondary">
-                    {match.vietnamDateKey}
+                    {formatDateShort(match.vietnamDateKey)}
                   </p>
 
                   <div className="mt-4 space-y-2">
@@ -790,7 +1003,7 @@ export function WorldCupSchedule({
                         type="button"
                         variant="outline"
                         size="sm"
-                        disabled={adminBusy || effectiveStatus === 'SETTLED'}
+                        disabled={adminBusy}
                         onClick={() =>
                           void updatePredictionStatus(
                             match,

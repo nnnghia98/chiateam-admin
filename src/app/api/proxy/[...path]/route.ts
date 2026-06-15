@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
+import worldCupData from '@/data/world-cup-2026.json';
 import { getInternalApiAuthToken, getSessionFromRequest } from '@/lib/auth';
-import { getWorldCupEffectiveStatus } from '@/lib/world-cup-time';
+import { worldCupMatchStartTime } from '@/lib/world-cup-time';
 
 export const runtime = 'nodejs';
 
@@ -32,6 +33,41 @@ type NormalizedPlayerEntry = {
   name: string;
   metadata: string;
 };
+
+type RawWorldCupScheduleMatch = {
+  num?: number;
+  date: string;
+  time: string;
+};
+
+const VIETNAM_OFFSET_HOURS = 7;
+
+function parseScheduleKickoff(date: string, time: string) {
+  const dateParts = date.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  const timeParts = time.match(/^(\d{1,2}):(\d{2})\s+UTC([+-]\d{1,2})$/);
+
+  if (!dateParts || !timeParts) return null;
+
+  const [, year, month, day] = dateParts;
+  const [, hour, minute, offset] = timeParts;
+  const timestamp = Date.UTC(
+    Number(year),
+    Number(month) - 1,
+    Number(day),
+    Number(hour) - Number(offset) + VIETNAM_OFFSET_HOURS,
+    Number(minute)
+  );
+
+  return Number.isNaN(timestamp) ? null : timestamp;
+}
+
+const worldCupScheduleStartById = new Map(
+  (worldCupData.matches as RawWorldCupScheduleMatch[]).flatMap((match, index) => {
+    const timestamp = parseScheduleKickoff(match.date, match.time);
+    const matchId = String(match.num ?? index + 1);
+    return timestamp === null ? [] : [[matchId, timestamp] as const];
+  })
+);
 
 function buildApiUrl(request: NextRequest, path: string[], excludedSearchParams: string[] = []) {
   const normalizedPath = [...path];
@@ -155,6 +191,13 @@ function hasPredictionValue(entry: Record<string, unknown>) {
   );
 }
 
+function shouldRevealWorldCupPredictions(match: Record<string, unknown>) {
+  const matchId = String(match.id ?? match.matchNumber ?? '');
+  const start =
+    worldCupScheduleStartById.get(matchId) ?? worldCupMatchStartTime(match as any);
+  return start !== null && Date.now() >= start;
+}
+
 function buildWorldCupMemberValidationUrl(request: NextRequest, path: string[], key: string) {
   const worldCupIndex = path
     .map(segment => segment.toLowerCase())
@@ -178,7 +221,7 @@ function censorWorldCupOverview(data: unknown) {
       : [];
   const censoredMatchIds = new Set(
     matches
-      .filter(match => isRecord(match) && getWorldCupEffectiveStatus(match as any) !== 'SETTLED')
+      .filter(match => isRecord(match) && !shouldRevealWorldCupPredictions(match))
       .map(match => String((match as { id?: unknown; matchNumber?: unknown }).id ?? (match as { matchNumber?: unknown }).matchNumber ?? ''))
       .filter(Boolean)
   );
