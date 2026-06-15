@@ -1,7 +1,8 @@
 'use client';
 
+import Image from 'next/image';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ChevronDown, LoaderCircle, Trophy } from 'lucide-react';
+import { ChevronDown, LoaderCircle } from 'lucide-react';
 import { apiClient } from '@/lib/api-client';
 import { getWorldCupEffectiveStatus } from '@/lib/world-cup-time';
 import { useAuth } from '@/contexts/auth-context';
@@ -285,14 +286,17 @@ export function WorldCupPredictionOverview({
       <summary className="flex cursor-pointer list-none items-center justify-between gap-4 border-b border-design-border-soft px-5 py-4 outline-none transition-colors hover:bg-design-muted/60 focus-visible:ring-2 focus-visible:ring-design-primary focus-visible:ring-offset-2 focus-visible:ring-offset-design-card">
         <div className="flex min-w-0 items-center gap-3">
           <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-airbnb bg-design-active text-design-primary-strong">
-            <Trophy className="h-5 w-5" />
+            <Image
+              src="/fifa-world-cup-2026.png"
+              alt=""
+              width={32}
+              height={32}
+              className="h-8 w-8 rounded-[4px] object-contain"
+            />
           </div>
           <div className="min-w-0">
             <p className="truncate text-base font-black text-design-text">
               {t('worldCup.predictionOverview')}
-            </p>
-            <p className="mt-1 truncate text-sm text-design-secondary">
-              {t('worldCup.predictionOverviewHelp')}
             </p>
           </div>
         </div>

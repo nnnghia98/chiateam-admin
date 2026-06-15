@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Copy, KeyRound, Plus, RefreshCw, Trash2 } from 'lucide-react';
+import { ChevronDown, Copy, KeyRound, Plus, RefreshCw, Trash2 } from 'lucide-react';
 import { apiClient } from '@/lib/api-client';
 import { useAuth } from '@/contexts/auth-context';
 import { useI18n } from '@/contexts/i18n-context';
@@ -181,13 +181,17 @@ export function WorldCupMemberManager() {
   };
 
   return (
-    <section className="overflow-hidden rounded-airbnb border border-design-border-soft bg-design-card shadow-design-card">
-      <div className="border-b border-design-border-soft px-5 py-4">
-        <div className="flex items-center gap-2 text-sm font-black text-design-text">
+    <details
+      open
+      className="group overflow-hidden rounded-airbnb border border-design-border-soft bg-design-card shadow-design-card [&_summary::-webkit-details-marker]:hidden"
+    >
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-4 border-b border-design-border-soft px-5 py-4 outline-none transition-colors hover:bg-design-muted/60 focus-visible:ring-2 focus-visible:ring-design-primary focus-visible:ring-offset-2 focus-visible:ring-offset-design-card">
+        <div className="flex min-w-0 items-center gap-2 text-sm font-black text-design-text">
           <KeyRound className="h-4 w-4 text-design-primary" />
           {t('worldCup.predictionMembers')}
         </div>
-      </div>
+        <ChevronDown className="h-5 w-5 flex-shrink-0 text-design-secondary transition-transform duration-200 group-open:rotate-180" />
+      </summary>
 
       <div className="grid gap-0 lg:grid-cols-[360px_minmax(0,1fr)]">
         <form
@@ -313,6 +317,6 @@ export function WorldCupMemberManager() {
           )}
         </div>
       </div>
-    </section>
+    </details>
   );
 }

@@ -89,19 +89,24 @@ export function getWorldCupEffectiveStatus(
   match: WorldCupMatch,
   now = Date.now()
 ): WorldCupEffectiveStatus {
-  if (match.status === 'SETTLED' || match.result !== null && match.result !== undefined) {
-    return 'SETTLED';
+  if (
+    match.status === 'OPEN' ||
+    match.status === 'LOCKED' ||
+    match.status === 'CLOSED' ||
+    match.status === 'SETTLED'
+  ) {
+    return match.status;
   }
 
-  if (match.status === 'CLOSED') return match.status;
+  if (match.result !== null && match.result !== undefined) {
+    return 'SETTLED';
+  }
 
   const start = worldCupMatchStartTime(match);
   if (start) {
     if (now >= start) return 'CLOSED';
     if (now >= start - PREDICTION_LOCK_MINUTES * 60 * 1000) return 'LOCKED';
   }
-
-  if (match.status === 'LOCKED') return match.status;
 
   return 'OPEN';
 }

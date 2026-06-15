@@ -156,7 +156,7 @@ const en = {
   'worldCup.loginWithPassCode': 'Login',
   'worldCup.predict': 'Predict',
   'worldCup.vnTime': 'VN time',
-  'worldCup.no': 'No.',
+  'worldCup.no': 'Match',
   'worldCup.matchesCount': '{{count}} matches',
   'worldCup.enterPassCodeError': 'Enter a pass code.',
   'worldCup.invalidPassCode': 'Invalid pass code.',
@@ -177,8 +177,6 @@ const en = {
   'worldCup.regeneratePassCode': 'Regenerate pass code for {{name}}',
   'worldCup.deleteMember': 'Delete {{name}}',
   'worldCup.predictionOverview': 'Full prediction schedule',
-  'worldCup.predictionOverviewHelp':
-    'All member picks are hidden until each match has a result.',
   'worldCup.loadingPredictionOverview': 'Loading prediction overview...',
   'worldCup.loadPredictionOverviewError':
     'Could not load prediction overview.',
@@ -354,7 +352,7 @@ const vi: Record<TranslationKey, string> = {
   'worldCup.loginWithPassCode': 'Đăng nhập',
   'worldCup.predict': 'Dự đoán',
   'worldCup.vnTime': 'Giờ VN',
-  'worldCup.no': 'STT',
+  'worldCup.no': 'Trận',
   'worldCup.matchesCount': '{{count}} trận',
   'worldCup.enterPassCodeError': 'Vui lòng nhập mã dự đoán.',
   'worldCup.invalidPassCode': 'Mã dự đoán không hợp lệ.',
@@ -375,8 +373,6 @@ const vi: Record<TranslationKey, string> = {
   'worldCup.regeneratePassCode': 'Cấp lại mã cho {{name}}',
   'worldCup.deleteMember': 'Xóa {{name}}',
   'worldCup.predictionOverview': 'Toàn bộ lịch dự đoán',
-  'worldCup.predictionOverviewHelp':
-    'Dự đoán của thành viên được ẩn cho tới khi trận có kết quả.',
   'worldCup.loadingPredictionOverview': 'Đang tải tổng quan dự đoán...',
   'worldCup.loadPredictionOverviewError':
     'Không thể tải tổng quan dự đoán.',

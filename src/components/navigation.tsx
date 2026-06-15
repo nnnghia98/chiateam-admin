@@ -1,9 +1,11 @@
 'use client';
 
+import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
+import type { LucideIcon } from 'lucide-react';
 import {
   Users,
   Trophy,
@@ -14,11 +16,11 @@ import {
   Menu,
   Swords,
   Shirt,
-  Goal,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/auth-context';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { Button } from '@/components/ui/button';
+import type { TranslationKey } from '@/lib/i18n';
 import {
   Sheet,
   SheetContent,
@@ -29,14 +31,25 @@ import {
 import { LanguageToggle } from '@/components/language-toggle';
 import { useI18n } from '@/contexts/i18n-context';
 
-const links = [
-  { href: '/world-cup', labelKey: 'nav.worldCup', icon: Goal },
+type NavLink = {
+  href: string;
+  labelKey: TranslationKey;
+  icon?: LucideIcon;
+  iconSrc?: string;
+};
+
+const links: NavLink[] = [
+  {
+    href: '/world-cup',
+    labelKey: 'nav.worldCup',
+    iconSrc: '/fifa-world-cup-2026.png',
+  },
   { href: '/next-match', labelKey: 'nav.nextMatch', icon: Swords },
   { href: '/players', labelKey: 'nav.players', icon: Users },
   { href: '/shirts', labelKey: 'nav.shirts', icon: Shirt },
   { href: '/matches', labelKey: 'nav.matches', icon: Calendar },
   { href: '/leaderboard', labelKey: 'nav.leaderboard', icon: Trophy },
-] as const;
+];
 
 function SidebarTooltip({ children }: { children: React.ReactNode }) {
   return (
@@ -44,6 +57,33 @@ function SidebarTooltip({ children }: { children: React.ReactNode }) {
       {children}
     </span>
   );
+}
+
+function NavIcon({
+  link,
+  imageClassName,
+  iconClassName,
+}: {
+  link: NavLink;
+  imageClassName: string;
+  iconClassName: string;
+}) {
+  if (link.iconSrc) {
+    return (
+      <Image
+        src={link.iconSrc}
+        alt=""
+        width={32}
+        height={32}
+        className={cn('flex-shrink-0 object-contain', imageClassName)}
+      />
+    );
+  }
+
+  if (!link.icon) return null;
+
+  const Icon = link.icon;
+  return <Icon className={iconClassName} />;
 }
 
 export function Navigation() {
@@ -83,7 +123,6 @@ export function Navigation() {
         {/* Nav links */}
         <nav className="flex flex-1 flex-col items-center gap-1 overflow-visible py-3">
           {links.map(link => {
-            const Icon = link.icon;
             const isActive = pathname === link.href;
             return (
               <Link
@@ -97,7 +136,11 @@ export function Navigation() {
                     : 'border-transparent text-design-secondary hover:bg-design-muted hover:text-design-text'
                 )}
               >
-                <Icon className="h-4 w-4 flex-shrink-0" />
+                <NavIcon
+                  link={link}
+                  imageClassName="h-8 w-8 rounded-[4px]"
+                  iconClassName="h-4 w-4 flex-shrink-0"
+                />
                 <SidebarTooltip>{t(link.labelKey)}</SidebarTooltip>
               </Link>
             );
@@ -205,7 +248,6 @@ export function Navigation() {
                     {/* Nav links */}
                     <nav className="flex flex-col gap-1">
                       {links.map(link => {
-                        const Icon = link.icon;
                         const isActive = pathname === link.href;
                         return (
                           <Link
@@ -219,7 +261,11 @@ export function Navigation() {
                                 : 'text-design-secondary hover:bg-design-muted hover:text-design-text'
                             )}
                           >
-                            <Icon className="w-5 h-5" />
+                            <NavIcon
+                              link={link}
+                              imageClassName="h-6 w-6 rounded-[4px]"
+                              iconClassName="h-5 w-5 flex-shrink-0"
+                            />
                             {t(link.labelKey)}
                           </Link>
                         );

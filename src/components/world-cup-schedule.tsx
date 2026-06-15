@@ -13,10 +13,7 @@ import {
   Unlock,
 } from 'lucide-react';
 import { apiClient } from '@/lib/api-client';
-import {
-  getWorldCupEffectiveStatus,
-  isWorldCupPredictionClosed,
-} from '@/lib/world-cup-time';
+import { getWorldCupEffectiveStatus } from '@/lib/world-cup-time';
 import { useAuth } from '@/contexts/auth-context';
 import { useI18n } from '@/contexts/i18n-context';
 import type { Locale } from '@/lib/i18n';
@@ -204,7 +201,7 @@ function fallbackBackendMatch(
     homeScore: backendMatch?.homeScore ?? match.score?.ft?.[0] ?? null,
     awayScore: backendMatch?.awayScore ?? match.score?.ft?.[1] ?? null,
     score: backendMatch?.score ?? (match.score?.ft ? scoreLabel(match) : null),
-    status: backendMatch?.status ?? (match.score?.ft ? 'SETTLED' : 'OPEN'),
+    status: backendMatch?.status ?? (match.score?.ft ? 'SETTLED' : undefined),
     result: backendMatch?.result ?? scoreToResult(match),
     ...overrides,
   };
@@ -453,6 +450,11 @@ export function WorldCupSchedule({
     if (!member || !passCode) return;
 
     const id = scheduleMatchId(match);
+    const backendMatch =
+      backendMatchById.get(id) ?? backendMatchById.get(scheduleTeamPairKey(match));
+    const effectiveMatch = fallbackBackendMatch(match, backendMatch);
+    if (getWorldCupEffectiveStatus(effectiveMatch) !== 'OPEN') return;
+
     const prediction = pickToOutcome(pick);
     const previousValue = drafts[id] ?? predictionPick(predictions[id]);
     if (prediction === null) {
@@ -583,6 +585,7 @@ export function WorldCupSchedule({
         responseMatch(response) ??
           fallbackBackendMatch(match, backendMatch, { status })
       );
+      await loadAdminMatches();
     } catch (saveError) {
       console.error('Failed to update World Cup match status:', saveError);
       setError(t('worldCup.updateStatusError'));
@@ -727,7 +730,6 @@ export function WorldCupSchedule({
                   const backendMatch =
                     backendMatchById.get(id) ?? backendMatchById.get(scheduleTeamPairKey(match));
                   const effectiveMatch = fallbackBackendMatch(match, backendMatch);
-                  const isClosed = isWorldCupPredictionClosed(effectiveMatch);
                   const value = drafts[id] ?? predictionPick(predictions[id]);
                   const scoreDraft =
                     scoreDrafts[id] ?? scoreDraftFromMatch(match, backendMatch);
@@ -835,7 +837,7 @@ export function WorldCupSchedule({
                         <div className="relative">
                           <select
                             value={value}
-                            disabled={!isLoggedIn || isClosed || Boolean(savingMatchId)}
+                            disabled={!isLoggedIn || !isPredictionOpen || Boolean(savingMatchId)}
                             onChange={event =>
                               void savePrediction(
                                 match,
@@ -875,9 +877,9 @@ export function WorldCupSchedule({
                             {adminBusy ? (
                               <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
                             ) : isPredictionOpen ? (
-                              <Lock className="mr-2 h-4 w-4" />
-                            ) : (
                               <Unlock className="mr-2 h-4 w-4" />
+                            ) : (
+                              <Lock className="mr-2 h-4 w-4" />
                             )}
                             {isPredictionOpen
                               ? t('worldCup.closePredict')
@@ -898,7 +900,6 @@ export function WorldCupSchedule({
               const backendMatch =
                 backendMatchById.get(id) ?? backendMatchById.get(scheduleTeamPairKey(match));
               const effectiveMatch = fallbackBackendMatch(match, backendMatch);
-              const isClosed = isWorldCupPredictionClosed(effectiveMatch);
               const value = drafts[id] ?? predictionPick(predictions[id]);
               const scoreDraft =
                 scoreDrafts[id] ?? scoreDraftFromMatch(match, backendMatch);
@@ -1015,7 +1016,7 @@ export function WorldCupSchedule({
                       <select
                         id={`prediction-${id}`}
                         value={value}
-                        disabled={!member || isClosed || Boolean(savingMatchId)}
+                        disabled={!member || !isPredictionOpen || Boolean(savingMatchId)}
                         onChange={event =>
                           void savePrediction(
                             match,
@@ -1055,9 +1056,9 @@ export function WorldCupSchedule({
                         {adminBusy ? (
                           <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
                         ) : isPredictionOpen ? (
-                          <Lock className="mr-2 h-4 w-4" />
-                        ) : (
                           <Unlock className="mr-2 h-4 w-4" />
+                        ) : (
+                          <Lock className="mr-2 h-4 w-4" />
                         )}
                         {isPredictionOpen
                           ? t('worldCup.closePredict')
