@@ -33,12 +33,44 @@ function backendMatchId(match: WorldCupMatch | null | undefined) {
   return String(match.id ?? match.matchNumber ?? '');
 }
 
+function normalizeMatchName(value: string | null | undefined) {
+  return String(value ?? '').trim().toLowerCase();
+}
+
+function teamPairKey(homeTeam: string | null | undefined, awayTeam: string | null | undefined) {
+  return `teams:${normalizeMatchName(homeTeam)}::${normalizeMatchName(awayTeam)}`;
+}
+
+function scheduleTeamPairKey(match: WorldCupScheduleMatch) {
+  return teamPairKey(match.team1, match.team2);
+}
+
+function backendTeamPairKey(match: WorldCupMatch) {
+  return teamPairKey(match.homeTeam, match.awayTeam);
+}
+
 function normalizeMatches(
   matches: WorldCupOverallResponse['matches']
 ): WorldCupMatch[] {
   if (Array.isArray(matches)) return matches;
   if (matches && typeof matches === 'object') return Object.values(matches);
   return [];
+}
+
+function normalizeMatchResponse(response: unknown): WorldCupMatch[] {
+  if (Array.isArray(response)) return response as WorldCupMatch[];
+  if (!response || typeof response !== 'object') return [];
+
+  const data = response as {
+    matches?: WorldCupMatch[] | Record<string, WorldCupMatch>;
+    match?: WorldCupMatch;
+  };
+
+  if (Array.isArray(data.matches)) return data.matches;
+  if (data.matches && typeof data.matches === 'object') {
+    return Object.values(data.matches);
+  }
+  return data.match ? [data.match] : [];
 }
 
 function normalizeMembers(
@@ -169,6 +201,7 @@ export function WorldCupPredictionOverview({
       if (match.matchNumber !== undefined && match.matchNumber !== null) {
         byId.set(String(match.matchNumber), match);
       }
+      byId.set(backendTeamPairKey(match), match);
     });
     return byId;
   }, [backendMatches]);
@@ -214,7 +247,19 @@ export function WorldCupPredictionOverview({
       setLoading(true);
       setError('');
       const response = await apiClient.getWorldCupPredictions();
-      setBackendMatches(normalizeMatches(response.matches));
+      let databaseMatches = normalizeMatches(response.matches);
+
+      try {
+        const matchesResponse = await apiClient.getWorldCupMatches();
+        const loadedMatches = normalizeMatchResponse(matchesResponse);
+        if (loadedMatches.length > 0) {
+          databaseMatches = loadedMatches;
+        }
+      } catch (matchesError) {
+        console.error('Failed to load World Cup match scores:', matchesError);
+      }
+
+      setBackendMatches(databaseMatches);
       setMembers(normalizeMembers(response.members));
       setPredictions((response.predictions ?? response.entries ?? {}) as PredictionMatrix);
       setTotals(response.totals ?? {});
@@ -298,7 +343,8 @@ export function WorldCupPredictionOverview({
             <tbody>
               {allMatches.map((match, index) => {
                 const id = scheduleMatchId(match);
-                const backendMatch = backendMatchById.get(id);
+                const backendMatch =
+                  backendMatchById.get(id) ?? backendMatchById.get(scheduleTeamPairKey(match));
                 const revealPredictions = shouldRevealPredictions(match, backendMatch);
                 const comparable = comparableMatch(match, backendMatch);
                 const resultTone =

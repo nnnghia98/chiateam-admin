@@ -100,6 +100,22 @@ function backendMatchId(match: WorldCupMatch | null | undefined) {
   return String(match.id ?? match.matchNumber ?? '');
 }
 
+function normalizeMatchName(value: string | null | undefined) {
+  return String(value ?? '').trim().toLowerCase();
+}
+
+function teamPairKey(homeTeam: string | null | undefined, awayTeam: string | null | undefined) {
+  return `teams:${normalizeMatchName(homeTeam)}::${normalizeMatchName(awayTeam)}`;
+}
+
+function scheduleTeamPairKey(match: WorldCupScheduleMatch) {
+  return teamPairKey(match.team1, match.team2);
+}
+
+function backendTeamPairKey(match: WorldCupMatch) {
+  return teamPairKey(match.homeTeam, match.awayTeam);
+}
+
 function toBackendMatchArray(response: unknown): WorldCupMatch[] {
   if (Array.isArray(response)) return response as WorldCupMatch[];
   if (!response || typeof response !== 'object') return [];
@@ -328,6 +344,7 @@ export function WorldCupSchedule({
       if (match.matchNumber !== undefined && match.matchNumber !== null) {
         byId.set(String(match.matchNumber), match);
       }
+      byId.set(backendTeamPairKey(match), match);
     });
     return byId;
   }, [backendMatches]);
@@ -414,7 +431,8 @@ export function WorldCupSchedule({
       const next = { ...current };
       allMatches.forEach(match => {
         const id = scheduleMatchId(match);
-        const backendMatch = backendMatchById.get(id);
+        const backendMatch =
+          backendMatchById.get(id) ?? backendMatchById.get(scheduleTeamPairKey(match));
         const backendDraft = scoreDraftFromMatch(match, backendMatch);
         const currentDraft = next[id];
         const hasCurrentDraft = Boolean(currentDraft?.home || currentDraft?.away);
@@ -503,11 +521,12 @@ export function WorldCupSchedule({
 
     const result = goalsToResult(homeScore, awayScore);
     const score = `${homeScore}-${awayScore}`;
-    const backendMatch = backendMatchById.get(id);
+    const backendMatch = backendMatchById.get(id) ?? backendMatchById.get(scheduleTeamPairKey(match));
+    const resultMatchId = backendMatchId(backendMatch) || id;
     try {
       setSavingAdminMatchId(id);
       setError('');
-      const response = await apiClient.setWorldCupMatchResult(id, {
+      const response = await apiClient.setWorldCupMatchResult(resultMatchId, {
         homeScore,
         awayScore,
         score,
@@ -553,12 +572,13 @@ export function WorldCupSchedule({
     status: WorldCupMatchStatus
   ) => {
     const id = scheduleMatchId(match);
-    const backendMatch = backendMatchById.get(id);
+    const backendMatch = backendMatchById.get(id) ?? backendMatchById.get(scheduleTeamPairKey(match));
+    const statusMatchId = backendMatchId(backendMatch) || id;
 
     try {
       setSavingAdminMatchId(id);
       setError('');
-      const response = await apiClient.setWorldCupMatchStatus(id, status);
+      const response = await apiClient.setWorldCupMatchStatus(statusMatchId, status);
       upsertBackendMatch(
         responseMatch(response) ??
           fallbackBackendMatch(match, backendMatch, { status })
@@ -704,7 +724,8 @@ export function WorldCupSchedule({
               <tbody>
                 {group.matches.map(match => {
                   const id = scheduleMatchId(match);
-                  const backendMatch = backendMatchById.get(id);
+                  const backendMatch =
+                    backendMatchById.get(id) ?? backendMatchById.get(scheduleTeamPairKey(match));
                   const effectiveMatch = fallbackBackendMatch(match, backendMatch);
                   const isClosed = isWorldCupPredictionClosed(effectiveMatch);
                   const value = drafts[id] ?? predictionPick(predictions[id]);
@@ -865,7 +886,8 @@ export function WorldCupSchedule({
           <div className="divide-y divide-design-border-soft md:hidden">
             {group.matches.map(match => {
               const id = scheduleMatchId(match);
-              const backendMatch = backendMatchById.get(id);
+              const backendMatch =
+                backendMatchById.get(id) ?? backendMatchById.get(scheduleTeamPairKey(match));
               const effectiveMatch = fallbackBackendMatch(match, backendMatch);
               const isClosed = isWorldCupPredictionClosed(effectiveMatch);
               const value = drafts[id] ?? predictionPick(predictions[id]);
