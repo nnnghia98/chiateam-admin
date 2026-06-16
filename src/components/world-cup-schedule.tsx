@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   CheckCircle2,
   ChevronDown,
@@ -254,6 +254,132 @@ function cleanPredictions(
   );
 }
 
+function isPredictionEntry(value: unknown): value is WorldCupPredictionEntry | null {
+  if (value === null) return true;
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+
+  return (
+    'prediction' in value ||
+    'value' in value ||
+    'matchId' in value ||
+    'memberId' in value ||
+    'userId' in value ||
+    'censored' in value
+  );
+}
+
+function memberPredictionKeys(member: WorldCupMember | null | undefined) {
+  return new Set(
+    [member?.id, member?.memberId, member?.userId, member?.playerNumber]
+      .map(value => String(value ?? '').trim())
+      .filter(Boolean)
+  );
+}
+
+function flattenMemberPredictions(
+  predictions: Record<string, unknown>,
+  member: WorldCupMember | null | undefined
+) {
+  const memberKeys = memberPredictionKeys(member);
+  const values = Object.values(predictions);
+  const isFlat = values.every(isPredictionEntry);
+
+  if (isFlat) {
+    return predictions as Record<string, WorldCupPredictionEntry | null>;
+  }
+
+  for (const key of memberKeys) {
+    const memberPredictions = predictions[key];
+    if (
+      memberPredictions &&
+      typeof memberPredictions === 'object' &&
+      !Array.isArray(memberPredictions)
+    ) {
+      return memberPredictions as Record<string, WorldCupPredictionEntry | null>;
+    }
+  }
+
+  const firstPredictionSet = values.find(
+    value => value && typeof value === 'object' && !Array.isArray(value)
+  );
+  return (firstPredictionSet ?? {}) as Record<string, WorldCupPredictionEntry | null>;
+}
+
+function addPredictionKey(keys: Set<string>, value: unknown) {
+  const key = String(value ?? '').trim();
+  if (key) keys.add(key);
+}
+
+function indexedBackendMatches(matches: WorldCupMatch[]) {
+  const byKey = new Map<string, WorldCupMatch>();
+
+  matches.forEach(match => {
+    const id = backendMatchId(match);
+    if (id) byKey.set(id, match);
+    if (match.matchNumber !== undefined && match.matchNumber !== null) {
+      byKey.set(String(match.matchNumber), match);
+    }
+    byKey.set(backendTeamPairKey(match), match);
+  });
+
+  return byKey;
+}
+
+function normalizePredictionsToSchedule(
+  predictions: Record<string, unknown>,
+  member: WorldCupMember | null | undefined,
+  scheduleMatches: WorldCupScheduleMatch[],
+  matches: WorldCupMatch[]
+): PredictionMap {
+  const cleanedPredictions = cleanPredictions(
+    flattenMemberPredictions(predictions, member)
+  );
+  const backendByKey = indexedBackendMatches(matches);
+  const scheduleById = new Map<string, WorldCupScheduleMatch>();
+  const scheduleByTeamPair = new Map<string, WorldCupScheduleMatch>();
+
+  scheduleMatches.forEach(match => {
+    scheduleById.set(scheduleMatchId(match), match);
+    scheduleByTeamPair.set(scheduleTeamPairKey(match), match);
+  });
+
+  return Object.entries(cleanedPredictions).reduce<PredictionMap>(
+    (normalized, [rawMatchId, entry]) => {
+      const keys = new Set<string>();
+      addPredictionKey(keys, rawMatchId);
+      addPredictionKey(keys, entry?.matchId);
+
+      Array.from(keys).forEach(key => {
+        const backendMatch = backendByKey.get(key);
+        const scheduleMatch = scheduleById.get(key);
+
+        if (backendMatch) {
+          addPredictionKey(keys, backendMatchId(backendMatch));
+          addPredictionKey(keys, backendMatch.matchNumber);
+          const backendPairKey = backendTeamPairKey(backendMatch);
+          const matchedSchedule = scheduleByTeamPair.get(backendPairKey);
+          addPredictionKey(keys, backendPairKey);
+          addPredictionKey(keys, matchedSchedule ? scheduleMatchId(matchedSchedule) : '');
+        }
+
+        if (scheduleMatch) {
+          addPredictionKey(keys, scheduleMatchId(scheduleMatch));
+          addPredictionKey(keys, scheduleTeamPairKey(scheduleMatch));
+        }
+      });
+
+      keys.forEach(key => {
+        if (!(key in normalized) || !normalized[key]) {
+          normalized[key] = entry;
+        }
+      });
+
+      return normalized;
+    },
+    {}
+  );
+}
+
 function predictionsToDrafts(predictions: PredictionMap): DraftMap {
   return Object.fromEntries(
     Object.entries(predictions).map(([matchId, entry]) => [
@@ -327,11 +453,16 @@ export function WorldCupSchedule({
   const [savingMatchId, setSavingMatchId] = useState<string | null>(null);
   const [savingAdminMatchId, setSavingAdminMatchId] = useState<string | null>(null);
   const [error, setError] = useState('');
+  const backendMatchesRef = useRef<WorldCupMatch[]>([]);
   const isLoggedIn = Boolean(member);
   const allMatches = useMemo(
     () => groups.flatMap(group => group.matches),
     [groups]
   );
+
+  useEffect(() => {
+    backendMatchesRef.current = backendMatches;
+  }, [backendMatches]);
 
   const backendMatchById = useMemo(() => {
     const byId = new Map<string, WorldCupMatch>();
@@ -380,18 +511,23 @@ export function WorldCupSchedule({
       setLoading(true);
       setError('');
       const response = await apiClient.getWorldCupMemberPredictions(trimmedKey);
-      const loadedPredictions = cleanPredictions(
-        response.predictions ?? response.entries ?? {}
+      const responseMatches = toBackendMatchArray(response);
+      const availableMatches = [...backendMatchesRef.current, ...responseMatches];
+      const loadedPredictions = normalizePredictionsToSchedule(
+        response.predictions ?? response.entries ?? {},
+        response.member,
+        allMatches,
+        availableMatches
       );
 
       window.localStorage.setItem('worldCupPredictionKey', trimmedKey);
       setPassCode(trimmedKey);
       setMember(response.member);
-      if (!canEdit) setBackendMatches(response.matches ?? []);
+      if (!canEdit) setBackendMatches(responseMatches);
       setPredictions(loadedPredictions);
       setDrafts({
-        ...predictionsToDrafts(loadedPredictions),
         ...readLocalDrafts(trimmedKey),
+        ...predictionsToDrafts(loadedPredictions),
       });
     } catch (loadError) {
       console.error('Failed to load World Cup member predictions:', loadError);
@@ -403,7 +539,7 @@ export function WorldCupSchedule({
     } finally {
       setLoading(false);
     }
-  }, [canEdit, t]);
+  }, [allMatches, canEdit, t]);
 
   useEffect(() => {
     try {
@@ -472,13 +608,17 @@ export function WorldCupSchedule({
         id,
         prediction
       );
-      const loadedPredictions = cleanPredictions(
-        response.predictions ?? response.entries ?? {}
+      const responseMatches = toBackendMatchArray(response);
+      const loadedPredictions = normalizePredictionsToSchedule(
+        response.predictions ?? response.entries ?? {},
+        response.member,
+        allMatches,
+        responseMatches.length ? responseMatches : backendMatches
       );
       setPredictions(loadedPredictions);
       setDrafts({
-        ...predictionsToDrafts(loadedPredictions),
         ...readLocalDrafts(passCode),
+        ...predictionsToDrafts(loadedPredictions),
         [id]: pick,
       });
     } catch (saveError) {
