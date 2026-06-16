@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   CheckCircle2,
   ChevronDown,
+  History,
   KeyRound,
   LoaderCircle,
   Lock,
@@ -436,6 +437,21 @@ function formatDateShort(dateKey: string) {
   return `${day.padStart(2, '0')}/${month.padStart(2, '0')}/${year}`;
 }
 
+function vietnamTodayKey() {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Ho_Chi_Minh',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(new Date());
+
+  const year = parts.find(part => part.type === 'year')?.value;
+  const month = parts.find(part => part.type === 'month')?.value;
+  const day = parts.find(part => part.type === 'day')?.value;
+
+  return year && month && day ? `${year}-${month}-${day}` : '';
+}
+
 export function WorldCupSchedule({
   groups,
 }: {
@@ -453,11 +469,28 @@ export function WorldCupSchedule({
   const [savingMatchId, setSavingMatchId] = useState<string | null>(null);
   const [savingAdminMatchId, setSavingAdminMatchId] = useState<string | null>(null);
   const [error, setError] = useState('');
+  const [showOldMatches, setShowOldMatches] = useState(false);
   const backendMatchesRef = useRef<WorldCupMatch[]>([]);
   const isLoggedIn = Boolean(member);
+  const todayKey = useMemo(() => vietnamTodayKey(), []);
   const allMatches = useMemo(
     () => groups.flatMap(group => group.matches),
     [groups]
+  );
+  const oldGroups = useMemo(
+    () => groups.filter(group => todayKey && group.dateKey < todayKey),
+    [groups, todayKey]
+  );
+  const visibleGroups = useMemo(
+    () =>
+      showOldMatches || !todayKey
+        ? groups
+        : groups.filter(group => group.dateKey >= todayKey),
+    [groups, showOldMatches, todayKey]
+  );
+  const oldMatchCount = useMemo(
+    () => oldGroups.reduce((count, group) => count + group.matches.length, 0),
+    [oldGroups]
   );
 
   useEffect(() => {
@@ -818,7 +851,27 @@ export function WorldCupSchedule({
         )}
       </div>
 
-      {groups.map((group, index) => (
+      {oldMatchCount > 0 && (
+        <div className="flex flex-col gap-3 rounded-airbnb border border-design-border-soft bg-design-card p-3 shadow-design-card sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-sm font-semibold text-design-secondary">
+            {t('worldCup.oldMatchesHidden', { count: oldMatchCount })}
+          </p>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => setShowOldMatches(current => !current)}
+            className="h-10 w-full sm:w-auto"
+          >
+            <History className="mr-2 h-4 w-4" />
+            {showOldMatches
+              ? t('worldCup.hideOldMatches')
+              : t('worldCup.showOldMatches')}
+          </Button>
+        </div>
+      )}
+
+      {visibleGroups.map((group, index) => (
         <details
           key={group.dateKey}
           open={index === 0}
