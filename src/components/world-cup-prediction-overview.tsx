@@ -103,6 +103,175 @@ function predictionValue(entry?: WorldCupPredictionEntry | null) {
   return '-';
 }
 
+function isPredictionEntry(value: unknown): value is WorldCupPredictionEntry | null {
+  if (value === null) return true;
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+
+  return (
+    'prediction' in value ||
+    'value' in value ||
+    'matchId' in value ||
+    'memberId' in value ||
+    'userId' in value ||
+    'censored' in value
+  );
+}
+
+function addMatrixKey(keys: Set<string>, value: unknown) {
+  const key = String(value ?? '').trim();
+  if (key) keys.add(key);
+}
+
+function indexedBackendMatches(matches: WorldCupMatch[]) {
+  const byKey = new Map<string, WorldCupMatch>();
+
+  matches.forEach(match => {
+    const id = backendMatchId(match);
+    if (id) byKey.set(id, match);
+    if (match.matchNumber !== undefined && match.matchNumber !== null) {
+      byKey.set(String(match.matchNumber), match);
+    }
+    byKey.set(backendTeamPairKey(match), match);
+  });
+
+  return byKey;
+}
+
+function indexedMembers(members: WorldCupMember[]) {
+  const byKey = new Map<string, string>();
+
+  members.forEach(member => {
+    const canonical = memberId(member);
+    if (!canonical) return;
+
+    [canonical, member.id, member.memberId, member.userId, member.playerNumber].forEach(
+      key => {
+        const normalizedKey = String(key ?? '').trim();
+        if (normalizedKey) byKey.set(normalizedKey, canonical);
+      }
+    );
+  });
+
+  return byKey;
+}
+
+function addMatchAliases(
+  keys: Set<string>,
+  backendByKey: Map<string, WorldCupMatch>,
+  scheduleById: Map<string, WorldCupScheduleMatch>,
+  scheduleByTeamPair: Map<string, WorldCupScheduleMatch>,
+  rawKey: string,
+  entry?: WorldCupPredictionEntry | null
+) {
+  addMatrixKey(keys, rawKey);
+  addMatrixKey(keys, entry?.matchId);
+
+  Array.from(keys).forEach(key => {
+    const backendMatch = backendByKey.get(key);
+    const scheduleMatch = scheduleById.get(key);
+
+    if (backendMatch) {
+      addMatrixKey(keys, backendMatchId(backendMatch));
+      addMatrixKey(keys, backendMatch.matchNumber);
+      const backendPairKey = backendTeamPairKey(backendMatch);
+      const matchedSchedule = scheduleByTeamPair.get(backendPairKey);
+      addMatrixKey(keys, backendPairKey);
+      addMatrixKey(keys, matchedSchedule ? scheduleMatchId(matchedSchedule) : '');
+    }
+
+    if (scheduleMatch) {
+      addMatrixKey(keys, scheduleMatchId(scheduleMatch));
+      addMatrixKey(keys, scheduleTeamPairKey(scheduleMatch));
+    }
+  });
+}
+
+function addOverviewPrediction(
+  matrix: PredictionMatrix,
+  memberKey: string,
+  matchKeys: Set<string>,
+  entry: WorldCupPredictionEntry | null
+) {
+  if (!matrix[memberKey]) matrix[memberKey] = {};
+
+  matchKeys.forEach(matchKey => {
+    if (!(matchKey in matrix[memberKey]) || !matrix[memberKey][matchKey]) {
+      matrix[memberKey][matchKey] = entry;
+    }
+  });
+}
+
+function normalizePredictionMatrix(
+  predictions: Record<string, Record<string, WorldCupPredictionEntry | null>>,
+  members: WorldCupMember[],
+  scheduleMatches: WorldCupScheduleMatch[],
+  matches: WorldCupMatch[]
+): PredictionMatrix {
+  const memberByKey = indexedMembers(members);
+  const backendByKey = indexedBackendMatches(matches);
+  const scheduleById = new Map<string, WorldCupScheduleMatch>();
+  const scheduleByTeamPair = new Map<string, WorldCupScheduleMatch>();
+
+  scheduleMatches.forEach(match => {
+    scheduleById.set(scheduleMatchId(match), match);
+    scheduleByTeamPair.set(scheduleTeamPairKey(match), match);
+  });
+
+  return Object.entries(predictions).reduce<PredictionMatrix>(
+    (matrix, [outerKey, inner]) => {
+      if (!inner || typeof inner !== 'object' || Array.isArray(inner)) {
+        return matrix;
+      }
+
+      const outerMemberKey = memberByKey.get(outerKey);
+      const innerEntries = Object.entries(inner);
+      const innerLooksLikePredictionSet = innerEntries.every(([, entry]) =>
+        isPredictionEntry(entry)
+      );
+
+      if (outerMemberKey && innerLooksLikePredictionSet) {
+        innerEntries.forEach(([rawMatchId, entry]) => {
+          if (!isPredictionEntry(entry)) return;
+          const matchKeys = new Set<string>();
+          addMatchAliases(
+            matchKeys,
+            backendByKey,
+            scheduleById,
+            scheduleByTeamPair,
+            rawMatchId,
+            entry
+          );
+          addOverviewPrediction(matrix, outerMemberKey, matchKeys, entry);
+        });
+        return matrix;
+      }
+
+      const matchKeys = new Set<string>();
+      addMatchAliases(
+        matchKeys,
+        backendByKey,
+        scheduleById,
+        scheduleByTeamPair,
+        outerKey
+      );
+
+      innerEntries.forEach(([rawMemberId, entry]) => {
+        if (!isPredictionEntry(entry)) return;
+        const entryMemberKey =
+          memberByKey.get(String(entry?.memberId ?? '')) ??
+          memberByKey.get(String(entry?.userId ?? '')) ??
+          memberByKey.get(rawMemberId) ??
+          rawMemberId;
+        if (!entryMemberKey) return;
+        addOverviewPrediction(matrix, entryMemberKey, matchKeys, entry);
+      });
+
+      return matrix;
+    },
+    {}
+  );
+}
+
 function scoreToResult(match: WorldCupScheduleMatch): WorldCupOutcome | null {
   const score = match.score?.ft;
   if (!score) return null;
@@ -263,9 +432,20 @@ export function WorldCupPredictionOverview({
         console.error('Failed to load World Cup match scores:', matchesError);
       }
 
+      const loadedMembers = normalizeMembers(response.members);
+      const loadedPredictions = normalizePredictionMatrix(
+        (response.predictions ?? response.entries ?? {}) as Record<
+          string,
+          Record<string, WorldCupPredictionEntry | null>
+        >,
+        loadedMembers,
+        allMatches,
+        databaseMatches
+      );
+
       setBackendMatches(databaseMatches);
-      setMembers(normalizeMembers(response.members));
-      setPredictions((response.predictions ?? response.entries ?? {}) as PredictionMatrix);
+      setMembers(loadedMembers);
+      setPredictions(loadedPredictions);
       setTotals(response.totals ?? {});
     } catch (loadError) {
       console.error('Failed to load World Cup prediction overview:', loadError);
@@ -273,7 +453,7 @@ export function WorldCupPredictionOverview({
     } finally {
       setLoading(false);
     }
-  }, [isAuthenticated, t]);
+  }, [allMatches, isAuthenticated, t]);
 
   useEffect(() => {
     void loadOverview();
