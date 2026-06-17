@@ -86,7 +86,7 @@ function normalizeMembers(
 
 function memberId(member: WorldCupMember) {
   return String(
-    member.memberId ?? member.userId ?? member.id ?? member.playerNumber ?? ''
+    member.member_id ?? member.memberId ?? member.id ?? member.playerNumber ?? ''
   );
 }
 
@@ -164,8 +164,8 @@ function isPredictionEntry(value: unknown): value is WorldCupPredictionEntry | n
     'prediction' in value ||
     'value' in value ||
     'matchId' in value ||
+    'member_id' in value ||
     'memberId' in value ||
-    'userId' in value ||
     'censored' in value
   );
 }
@@ -197,7 +197,7 @@ function indexedMembers(members: WorldCupMember[]) {
     const canonical = memberId(member);
     if (!canonical) return;
 
-    [canonical, member.id, member.memberId, member.userId, member.playerNumber].forEach(
+    [canonical, member.member_id, member.memberId, member.id, member.playerNumber].forEach(
       key => {
         const normalizedKey = String(key ?? '').trim();
         if (normalizedKey) byKey.set(normalizedKey, canonical);
@@ -311,8 +311,8 @@ function normalizePredictionMatrix(
       innerEntries.forEach(([rawMemberId, entry]) => {
         if (!isPredictionEntry(entry)) return;
         const entryMemberKey =
+          memberByKey.get(String(entry?.member_id ?? '')) ??
           memberByKey.get(String(entry?.memberId ?? '')) ??
-          memberByKey.get(String(entry?.userId ?? '')) ??
           memberByKey.get(rawMemberId) ??
           rawMemberId;
         if (!entryMemberKey) return;
@@ -492,9 +492,9 @@ export function WorldCupPredictionOverview({
     (member: WorldCupMember) => {
       const candidateKeys = [
         memberId(member),
+        member.member_id,
         member.id,
         member.memberId,
-        member.userId,
         member.playerNumber !== undefined && member.playerNumber !== null
           ? String(member.playerNumber)
           : undefined,

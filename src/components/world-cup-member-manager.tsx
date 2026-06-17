@@ -12,8 +12,9 @@ import type { WorldCupMemberKey } from '@/types/world-cup';
 
 function memberId(member: WorldCupMemberKey) {
   return String(
-    member.memberId ??
-      member.userId ??
+    member.member_id ??
+      member.memberId ??
+      member.member?.member_id ??
       member.member?.memberId ??
       member.member?.id ??
       member.id ??

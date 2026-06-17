@@ -20,11 +20,10 @@ export interface WorldCupMatch {
 }
 
 export interface WorldCupPredictionEntry {
-  userId?: string;
+  member_id?: string;
   memberId?: string;
   matchId?: string;
   name?: string;
-  username?: string | null;
   prediction?: WorldCupOutcome | '***' | null;
   value?: WorldCupOutcome | '***' | null;
   censored?: boolean;
@@ -38,9 +37,9 @@ export interface WorldCupPredictionRow extends WorldCupPredictionEntry {
 }
 
 export interface WorldCupLeaderboardRow {
-  userId: string;
+  member_id: string;
+  memberId?: string;
   name: string;
-  username: string | null;
   points: number;
   predictions: number;
   exactScores: number;
@@ -83,11 +82,10 @@ export interface WorldCupMatchResultPayload {
 
 export interface WorldCupMember {
   id: string;
-  userId?: string;
+  member_id?: string;
   memberId?: string;
   playerNumber?: number;
   name: string;
-  username?: string | null;
 }
 
 export interface WorldCupMemberKey extends WorldCupMember {

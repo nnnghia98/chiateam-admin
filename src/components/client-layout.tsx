@@ -12,8 +12,7 @@ function ProtectedLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const [hasPredictionKey, setHasPredictionKey] = useState(false);
   const [predictionKeyChecked, setPredictionKeyChecked] = useState(false);
-  const isPublicPredictionRoute =
-    pathname === '/world-cup/predict' || pathname.startsWith('/world-cup/predict/');
+  const isPublicPredictionRoute = pathname === '/world-cup/predict';
   const isPublicWorldCupRoute =
     pathname === '/world-cup' && hasPredictionKey && !isAuthenticated;
 

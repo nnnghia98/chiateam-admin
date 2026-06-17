@@ -266,15 +266,15 @@ function isPredictionEntry(value: unknown): value is WorldCupPredictionEntry | n
     'prediction' in value ||
     'value' in value ||
     'matchId' in value ||
+    'member_id' in value ||
     'memberId' in value ||
-    'userId' in value ||
     'censored' in value
   );
 }
 
 function memberPredictionKeys(member: WorldCupMember | null | undefined) {
   return new Set(
-    [member?.id, member?.memberId, member?.userId, member?.playerNumber]
+    [member?.member_id, member?.memberId, member?.id, member?.playerNumber]
       .map(value => String(value ?? '').trim())
       .filter(Boolean)
   );
