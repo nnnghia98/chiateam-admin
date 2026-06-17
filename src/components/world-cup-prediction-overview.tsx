@@ -286,22 +286,6 @@ function formatDateShort(dateKey: string) {
   return `${day.padStart(2, '0')}/${month.padStart(2, '0')}/${year}`;
 }
 
-function teamResultClass(
-  result: WorldCupOutcome | null | undefined,
-  side: 'home' | 'away'
-) {
-  const isWinner = (result === 1 && side === 'home') || (result === 2 && side === 'away');
-  const isLoser = (result === 1 && side === 'away') || (result === 2 && side === 'home');
-
-  if (isWinner) {
-    return 'text-emerald-700 dark:text-emerald-300';
-  }
-  if (isLoser) {
-    return 'text-design-error dark:text-[#ff8a9d]';
-  }
-  return 'text-design-text';
-}
-
 function comparableMatch(
   match: WorldCupScheduleMatch,
   backendMatch?: WorldCupMatch
@@ -333,6 +317,65 @@ function scoreLabel(match: WorldCupScheduleMatch, backendMatch?: WorldCupMatch) 
   }
   if (!match.score?.ft) return '-';
   return `${match.score.ft[0]}-${match.score.ft[1]}`;
+}
+
+function scoreParts(match: WorldCupScheduleMatch, backendMatch?: WorldCupMatch) {
+  if (
+    typeof backendMatch?.homeScore === 'number' &&
+    typeof backendMatch?.awayScore === 'number'
+  ) {
+    return {
+      home: String(backendMatch.homeScore),
+      away: String(backendMatch.awayScore),
+    };
+  }
+
+  const score = backendMatch?.score ?? scoreLabel(match, backendMatch);
+  const parts = score.match(/^\s*(\d+)\s*-\s*(\d+)\s*$/);
+  if (parts) {
+    return { home: parts[1], away: parts[2] };
+  }
+
+  return match.score?.ft
+    ? { home: String(match.score.ft[0]), away: String(match.score.ft[1]) }
+    : null;
+}
+
+function ScoreInline({
+  match,
+  backendMatch,
+  result,
+}: {
+  match: WorldCupScheduleMatch;
+  backendMatch?: WorldCupMatch;
+  result: WorldCupOutcome | null | undefined;
+}) {
+  const parts = scoreParts(match, backendMatch);
+
+  if (!parts) {
+    return (
+      <span className="text-xs font-black uppercase text-design-secondary">
+        vs
+      </span>
+    );
+  }
+
+  const numberClass =
+    'inline-block min-w-4 text-center text-base font-black text-design-text';
+  const winnerClass =
+    'underline decoration-2 underline-offset-4 decoration-design-primary';
+
+  return (
+    <span className="inline-flex items-center gap-1 text-design-text">
+      <span className={cn(numberClass, result === 1 && winnerClass)}>
+        {parts.home}
+      </span>
+      <span className="text-sm font-black text-design-secondary">-</span>
+      <span className={cn(numberClass, result === 2 && winnerClass)}>
+        {parts.away}
+      </span>
+    </span>
+  );
 }
 
 function shouldRevealPredictions(
@@ -497,7 +540,7 @@ export function WorldCupPredictionOverview({
         </div>
       ) : (
         <div className="max-h-[min(34rem,calc(100vh-14rem))] overflow-auto">
-          <table className="w-full min-w-[980px] border-collapse text-sm">
+          <table className="w-full min-w-[900px] border-collapse text-sm">
             <thead>
               <tr className="border-b border-design-border-soft bg-design-muted">
                 <th className="sticky left-0 top-0 z-30 w-20 bg-design-muted px-4 py-3 text-left text-xs font-bold uppercase tracking-[0.14em] text-design-secondary">
@@ -508,9 +551,6 @@ export function WorldCupPredictionOverview({
                 </th>
                 <th className="sticky top-0 z-20 min-w-72 bg-design-muted px-4 py-3 text-center text-xs font-bold uppercase tracking-[0.14em] text-design-secondary">
                   {t('common.match')}
-                </th>
-                <th className="sticky top-0 z-20 w-24 bg-design-muted px-4 py-3 text-center text-xs font-bold uppercase tracking-[0.14em] text-design-secondary">
-                  {t('common.score')}
                 </th>
                 {sortedMembers.map(member => (
                   <th
@@ -558,30 +598,21 @@ export function WorldCupPredictionOverview({
                     <td className="px-4 py-4">
                       <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3">
                         <p
-                          className={cn(
-                            'max-w-full justify-self-end truncate text-right font-bold',
-                            teamResultClass(resultTone, 'home')
-                          )}
+                          className="max-w-full justify-self-end truncate text-right font-bold text-design-text"
                         >
                           {match.team1}
                         </p>
-                        <span className="rounded-full border border-design-border-soft bg-design-card px-2 py-1 text-xs font-black text-design-secondary">
-                          vs
-                        </span>
+                        <ScoreInline
+                          match={match}
+                          backendMatch={backendMatch}
+                          result={resultTone}
+                        />
                         <p
-                          className={cn(
-                            'max-w-full justify-self-start truncate font-bold',
-                            teamResultClass(resultTone, 'away')
-                          )}
+                          className="max-w-full justify-self-start truncate font-bold text-design-text"
                         >
                           {match.team2}
                         </p>
                       </div>
-                    </td>
-                    <td className="px-4 py-4 text-center">
-                      <span className="inline-flex min-w-14 justify-center rounded-full bg-design-active px-3 py-1 text-sm font-black text-design-primary-strong">
-                        {scoreLabel(match, backendMatch)}
-                      </span>
                     </td>
                     {sortedMembers.map(member => {
                       const idMember = memberId(member);

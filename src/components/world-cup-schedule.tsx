@@ -171,20 +171,14 @@ function goalsToResult(homeScore: number, awayScore: number): WorldCupOutcome {
   return 0;
 }
 
-function teamResultClass(
+function winningTeamClass(
   result: WorldCupOutcome | null | undefined,
   side: 'home' | 'away'
 ) {
   const isWinner = (result === 1 && side === 'home') || (result === 2 && side === 'away');
-  const isLoser = (result === 1 && side === 'away') || (result === 2 && side === 'home');
-
-  if (isWinner) {
-    return 'text-emerald-700 dark:text-emerald-300';
-  }
-  if (isLoser) {
-    return 'text-design-error dark:text-[#ff8a9d]';
-  }
-  return 'text-design-text';
+  return isWinner
+    ? 'underline decoration-2 underline-offset-4 decoration-design-primary'
+    : '';
 }
 
 function fallbackBackendMatch(
@@ -226,6 +220,15 @@ function scoreDraftFromMatch(
           ? String(match.score.ft[1])
           : '',
   };
+}
+
+function hasMatchScore(match: WorldCupScheduleMatch, backendMatch?: WorldCupMatch) {
+  return (
+    Boolean(backendMatch?.score) ||
+    (typeof backendMatch?.homeScore === 'number' &&
+      typeof backendMatch?.awayScore === 'number') ||
+    Boolean(match.score?.ft)
+  );
 }
 
 function responseMatch(response: unknown): WorldCupMatch | null {
@@ -892,7 +895,7 @@ export function WorldCupSchedule({
           </summary>
 
           <div className="hidden overflow-x-auto md:block">
-            <table className="w-full min-w-[920px] border-collapse text-sm">
+            <table className="w-full min-w-[800px] border-collapse text-sm">
               <thead>
                 <tr className="border-b border-design-border-soft bg-design-muted">
                   <th className="w-20 px-4 py-3 text-left text-xs font-bold uppercase tracking-[0.14em] text-design-secondary">
@@ -903,9 +906,6 @@ export function WorldCupSchedule({
                   </th>
                   <th className="px-4 py-3 text-center text-xs font-bold uppercase tracking-[0.14em] text-design-secondary">
                     {t('common.match')}
-                  </th>
-                  <th className="w-44 px-4 py-3 text-center text-xs font-bold uppercase tracking-[0.14em] text-design-secondary">
-                    {t('common.score')}
                   </th>
                   <th className="w-36 px-4 py-3 text-center text-xs font-bold uppercase tracking-[0.14em] text-design-secondary">
                     {t('worldCup.predict')}
@@ -932,6 +932,8 @@ export function WorldCupSchedule({
                   const isPredictionOpen = effectiveStatus === 'OPEN';
                   const resultTone =
                     effectiveStatus === 'SETTLED' ? effectiveMatch.result : null;
+                  const resultLabel = matchScoreLabel(match, backendMatch);
+                  const hasResult = hasMatchScore(match, backendMatch);
                   return (
                     <tr
                       key={`${group.dateKey}-${match.matchNumber}`}
@@ -953,78 +955,79 @@ export function WorldCupSchedule({
                           <p
                             className={cn(
                               'max-w-full justify-self-end truncate text-right font-bold',
-                              teamResultClass(resultTone, 'home')
+                              winningTeamClass(resultTone, 'home')
                             )}
                           >
                             {match.team1}
                           </p>
-                          <span className="rounded-full border border-design-border-soft bg-design-card px-2 py-1 text-xs font-black text-design-secondary">
-                            vs
-                          </span>
+                          {canEdit ? (
+                            <div
+                              className="grid grid-cols-[2.5rem_auto_2.5rem_auto] items-center justify-center gap-1"
+                              aria-label={t('worldCup.setResultFor', { id })}
+                            >
+                              <Input
+                                type="text"
+                                value={scoreDraft.home}
+                                disabled={adminBusy}
+                                onChange={event =>
+                                  updateScoreDraft(id, 'home', event.target.value)
+                                }
+                                className="h-9 w-10 px-2 text-center text-sm font-black"
+                                inputMode="numeric"
+                                pattern="[0-9]*"
+                                maxLength={2}
+                                aria-label={`${match.team1} ${t('common.score')}`}
+                              />
+                              <span className="font-black text-design-secondary">-</span>
+                              <Input
+                                type="text"
+                                value={scoreDraft.away}
+                                disabled={adminBusy}
+                                onChange={event =>
+                                  updateScoreDraft(id, 'away', event.target.value)
+                                }
+                                className="h-9 w-10 px-2 text-center text-sm font-black"
+                                inputMode="numeric"
+                                pattern="[0-9]*"
+                                maxLength={2}
+                                aria-label={`${match.team2} ${t('common.score')}`}
+                              />
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="icon"
+                                disabled={adminBusy}
+                                onClick={() => void updateMatchResult(match)}
+                                className="h-9 w-9"
+                                aria-label={t('worldCup.saveResult')}
+                              >
+                                {adminBusy ? (
+                                  <LoaderCircle className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <Save className="h-4 w-4" />
+                                )}
+                              </Button>
+                            </div>
+                          ) : (
+                            <span
+                              className={cn(
+                                'rounded-full border border-design-border-soft bg-design-card px-2 py-1 text-xs font-black text-design-secondary',
+                                hasResult &&
+                                  'min-w-14 border-transparent bg-design-muted px-3 text-sm text-design-text'
+                              )}
+                            >
+                              {hasResult ? resultLabel : 'vs'}
+                            </span>
+                          )}
                           <p
                             className={cn(
                               'max-w-full justify-self-start truncate font-bold',
-                              teamResultClass(resultTone, 'away')
+                              winningTeamClass(resultTone, 'away')
                             )}
                           >
                             {match.team2}
                           </p>
                         </div>
-                      </td>
-                      <td className="px-4 py-4 text-center">
-                        {canEdit ? (
-                          <div
-                            className="grid grid-cols-[2.5rem_auto_2.5rem_auto] items-center justify-center gap-1"
-                            aria-label={t('worldCup.setResultFor', { id })}
-                          >
-                            <Input
-                              type="text"
-                              value={scoreDraft.home}
-                              disabled={adminBusy}
-                              onChange={event =>
-                                updateScoreDraft(id, 'home', event.target.value)
-                              }
-                              className="h-9 w-10 px-2 text-center text-sm font-black"
-                              inputMode="numeric"
-                              pattern="[0-9]*"
-                              maxLength={2}
-                              aria-label={`${match.team1} ${t('common.score')}`}
-                            />
-                            <span className="font-black text-design-secondary">-</span>
-                            <Input
-                              type="text"
-                              value={scoreDraft.away}
-                              disabled={adminBusy}
-                              onChange={event =>
-                                updateScoreDraft(id, 'away', event.target.value)
-                              }
-                              className="h-9 w-10 px-2 text-center text-sm font-black"
-                              inputMode="numeric"
-                              pattern="[0-9]*"
-                              maxLength={2}
-                              aria-label={`${match.team2} ${t('common.score')}`}
-                            />
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="icon"
-                              disabled={adminBusy}
-                              onClick={() => void updateMatchResult(match)}
-                              className="h-9 w-9"
-                              aria-label={t('worldCup.saveResult')}
-                            >
-                              {adminBusy ? (
-                                <LoaderCircle className="h-4 w-4 animate-spin" />
-                              ) : (
-                                <Save className="h-4 w-4" />
-                              )}
-                            </Button>
-                          </div>
-                        ) : (
-                          <span className="inline-flex min-w-16 justify-center rounded-full bg-design-active px-3 py-1 text-sm font-black text-design-primary-strong">
-                            {matchScoreLabel(match, backendMatch)}
-                          </span>
-                        )}
                       </td>
                       <td className="px-4 py-4 text-center">
                         <div className="relative">
@@ -1102,12 +1105,14 @@ export function WorldCupSchedule({
               const isPredictionOpen = effectiveStatus === 'OPEN';
               const resultTone =
                 effectiveStatus === 'SETTLED' ? effectiveMatch.result : null;
+              const resultLabel = matchScoreLabel(match, backendMatch);
+              const hasResult = hasMatchScore(match, backendMatch);
               return (
                 <article
                   key={`${group.dateKey}-${match.matchNumber}-mobile`}
                   className="p-4"
                 >
-                  <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-start gap-3">
                     <div>
                       <p className="text-xs font-bold uppercase tracking-[0.14em] text-design-secondary">
                         {t('common.match')} {match.matchNumber} · {stageLabel(match, t)}
@@ -1116,9 +1121,20 @@ export function WorldCupSchedule({
                         {match.vietnamTimeLabel}
                       </p>
                     </div>
+                  </div>
+
+                  <div className="mt-4 grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2">
+                    <p
+                      className={cn(
+                        'max-w-full justify-self-end text-right text-base font-black',
+                        winningTeamClass(resultTone, 'home')
+                      )}
+                    >
+                      {match.team1}
+                    </p>
                     {canEdit ? (
                       <div
-                        className="grid w-44 grid-cols-[1fr_auto_1fr_auto] items-center gap-1"
+                        className="grid grid-cols-[1fr_auto_1fr_auto] items-center gap-1"
                         aria-label={t('worldCup.setResultFor', { id })}
                       >
                         <Input
@@ -1165,28 +1181,20 @@ export function WorldCupSchedule({
                         </Button>
                       </div>
                     ) : (
-                      <span className="rounded-full bg-design-active px-3 py-1 text-sm font-black text-design-primary-strong">
-                        {matchScoreLabel(match, backendMatch)}
+                      <span
+                        className={cn(
+                          'rounded-full border border-design-border-soft bg-design-card px-2 py-1 text-xs font-black uppercase text-design-secondary',
+                          hasResult &&
+                            'min-w-14 border-transparent bg-design-muted px-3 text-center text-sm text-design-text'
+                        )}
+                      >
+                        {hasResult ? resultLabel : 'vs'}
                       </span>
                     )}
-                  </div>
-
-                  <div className="mt-4 grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2">
-                    <p
-                      className={cn(
-                        'max-w-full justify-self-end text-right text-base font-black',
-                        teamResultClass(resultTone, 'home')
-                      )}
-                    >
-                      {match.team1}
-                    </p>
-                    <span className="text-xs font-black uppercase text-design-secondary">
-                      vs
-                    </span>
                     <p
                       className={cn(
                         'max-w-full justify-self-start text-base font-black',
-                        teamResultClass(resultTone, 'away')
+                        winningTeamClass(resultTone, 'away')
                       )}
                     >
                       {match.team2}
