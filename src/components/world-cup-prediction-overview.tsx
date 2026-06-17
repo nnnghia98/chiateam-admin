@@ -103,6 +103,59 @@ function predictionValue(entry?: WorldCupPredictionEntry | null) {
   return '-';
 }
 
+function predictionOutcome(entry?: WorldCupPredictionEntry | null) {
+  if (!entry || entry.censored || entry.value === '***' || entry.prediction === '***') {
+    return null;
+  }
+
+  const value = predictionValue(entry);
+  if (value === '0') return 0;
+  if (value === '1') return 1;
+  if (value === '2') return 2;
+  return null;
+}
+
+function PredictionCell({
+  entry,
+  reveal,
+  result,
+}: {
+  entry?: WorldCupPredictionEntry | null;
+  reveal: boolean;
+  result: WorldCupOutcome | null | undefined;
+}) {
+  const value = reveal ? predictionValue(entry) : '***';
+  const prediction = reveal ? predictionOutcome(entry) : null;
+  const state =
+    prediction !== null && result !== null && result !== undefined
+      ? prediction === result
+        ? 'correct'
+        : 'wrong'
+      : 'neutral';
+
+  return (
+    <span
+      className={cn(
+        'mx-auto inline-flex h-9 min-w-9 items-center justify-center rounded-airbnb px-3 text-sm font-black',
+        state === 'correct' &&
+          'bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-200 dark:bg-emerald-950/30 dark:text-emerald-300 dark:ring-emerald-800',
+        state === 'wrong' &&
+          'bg-design-active text-design-primary-strong ring-1 ring-inset ring-design-primary/25',
+        state === 'neutral' && 'text-design-text'
+      )}
+      title={
+        state === 'correct'
+          ? 'Correct prediction'
+          : state === 'wrong'
+            ? 'Wrong prediction'
+            : undefined
+      }
+    >
+      {value}
+    </span>
+  );
+}
+
 function isPredictionEntry(value: unknown): value is WorldCupPredictionEntry | null {
   if (value === null) return true;
   if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
@@ -620,9 +673,13 @@ export function WorldCupPredictionOverview({
                       return (
                         <td
                           key={`${id}-${idMember}`}
-                          className="px-4 py-4 text-center font-black text-design-text"
+                          className="px-4 py-4 text-center"
                         >
-                          {revealPredictions ? predictionValue(entry) : '***'}
+                          <PredictionCell
+                            entry={entry}
+                            reveal={revealPredictions}
+                            result={resultTone}
+                          />
                         </td>
                       );
                     })}
