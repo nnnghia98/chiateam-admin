@@ -1044,9 +1044,9 @@ export function WorldCupSchedule({
                             aria-busy={predictionBusy}
                           >
                             <option value="">-</option>
-                            <option value="1">1</option>
-                            <option value="2">2</option>
-                            <option value="0">0</option>
+                            <option value="1">{match.team1}</option>
+                            <option value="2">{match.team2}</option>
+                            <option value="0">{t('worldCup.draw')}</option>
                           </select>
                           {predictionBusy && (
                             <span className="pointer-events-none absolute inset-y-0 right-7 flex items-center text-design-primary">
@@ -1228,9 +1228,9 @@ export function WorldCupSchedule({
                         aria-busy={predictionBusy}
                       >
                         <option value="">-</option>
-                        <option value="1">1</option>
-                        <option value="2">2</option>
-                        <option value="0">0</option>
+                        <option value="1">{match.team1}</option>
+                        <option value="2">{match.team2}</option>
+                        <option value="0">{t('worldCup.draw')}</option>
                       </select>
                       {predictionBusy && (
                         <span className="pointer-events-none absolute inset-y-0 right-8 flex items-center text-design-primary">

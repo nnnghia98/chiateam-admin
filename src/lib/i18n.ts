@@ -89,6 +89,7 @@ const en = {
   'worldCup.time': 'Time',
   'worldCup.teamOne': 'Team 1',
   'worldCup.teamTwo': 'Team 2',
+  'worldCup.draw': 'Draw',
   'worldCup.actualResult': 'Result',
   'worldCup.memberViewTitle': 'World Cup prediction overview',
   'worldCup.memberViewDescription':
@@ -286,6 +287,7 @@ const vi: Record<TranslationKey, string> = {
   'worldCup.time': 'Giờ',
   'worldCup.teamOne': 'Đội 1',
   'worldCup.teamTwo': 'Đội 2',
+  'worldCup.draw': 'Hòa',
   'worldCup.actualResult': 'Kết quả',
   'worldCup.memberViewTitle': 'Tổng quan dự đoán World Cup',
   'worldCup.memberViewDescription':
