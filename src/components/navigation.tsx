@@ -9,7 +9,6 @@ import type { LucideIcon } from 'lucide-react';
 import {
   Users,
   Trophy,
-  Calendar,
   LogOut,
   Shield,
   Eye,
@@ -47,7 +46,6 @@ const links: NavLink[] = [
   { href: '/next-match', labelKey: 'nav.nextMatch', icon: Swords },
   { href: '/players', labelKey: 'nav.players', icon: Users },
   { href: '/shirts', labelKey: 'nav.shirts', icon: Shirt },
-  { href: '/matches', labelKey: 'nav.matches', icon: Calendar },
   { href: '/leaderboard', labelKey: 'nav.leaderboard', icon: Trophy },
 ];
 
