@@ -61,8 +61,21 @@ type PredictionMap = Record<string, WorldCupPredictionEntry | null>;
 type DraftMap = Record<string, WorldCupPickValue | ''>;
 type ScoreDraftMap = Record<string, { home: string; away: string }>;
 
-function localDraftsKey(passCode: string) {
-  return `worldCupPredictionDrafts:${passCode}`;
+function predictionStorageKey(passCode: string) {
+  let hash = 0;
+  for (let index = 0; index < passCode.length; index += 1) {
+    hash = Math.imul(31, hash) + passCode.charCodeAt(index);
+  }
+  return `worldCupPredictionDrafts:${(hash >>> 0).toString(36)}`;
+}
+
+function clearPersistentPredictionStorage() {
+  try {
+    window.localStorage.removeItem('worldCupPredictionKey');
+    Object.keys(window.localStorage)
+      .filter(key => key.startsWith('worldCupPredictionDrafts:'))
+      .forEach(key => window.localStorage.removeItem(key));
+  } catch {}
 }
 
 function scoreLabel(match: WorldCupScheduleMatch) {
@@ -396,7 +409,7 @@ function predictionsToDrafts(predictions: PredictionMap): DraftMap {
 function readLocalDrafts(passCode: string): DraftMap {
   try {
     const parsed = JSON.parse(
-      window.localStorage.getItem(localDraftsKey(passCode)) ?? '{}'
+      window.sessionStorage.getItem(predictionStorageKey(passCode)) ?? '{}'
     );
     if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {};
 
@@ -417,7 +430,10 @@ function writeLocalDraft(passCode: string, matchId: string, pick: WorldCupPickVa
       ...readLocalDrafts(passCode),
       [matchId]: pick,
     };
-    window.localStorage.setItem(localDraftsKey(passCode), JSON.stringify(nextDrafts));
+    window.sessionStorage.setItem(
+      predictionStorageKey(passCode),
+      JSON.stringify(nextDrafts)
+    );
   } catch {}
 }
 
@@ -556,7 +572,8 @@ export function WorldCupSchedule({
         availableMatches
       );
 
-      window.localStorage.setItem('worldCupPredictionKey', trimmedKey);
+      clearPersistentPredictionStorage();
+      window.sessionStorage.setItem('worldCupPredictionKey', trimmedKey);
       setPassCode(trimmedKey);
       setMember(response.member);
       if (!canEdit) setBackendMatches(responseMatches);
@@ -579,7 +596,8 @@ export function WorldCupSchedule({
 
   useEffect(() => {
     try {
-      const storedKey = window.localStorage.getItem('worldCupPredictionKey') ?? '';
+      clearPersistentPredictionStorage();
+      const storedKey = window.sessionStorage.getItem('worldCupPredictionKey') ?? '';
       if (storedKey) {
         setPassCode(storedKey);
         void loadMemberPredictions(storedKey);
@@ -668,7 +686,7 @@ export function WorldCupSchedule({
 
   const changePassCode = () => {
     try {
-      window.localStorage.removeItem('worldCupPredictionKey');
+      window.sessionStorage.removeItem('worldCupPredictionKey');
     } catch {}
     setMember(null);
     setPassCode('');

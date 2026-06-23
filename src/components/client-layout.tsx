@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { AuthProvider, useAuth } from '@/contexts/auth-context';
 import { I18nProvider } from '@/contexts/i18n-context';
@@ -10,25 +10,17 @@ function ProtectedLayout({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading } = useAuth();
   const pathname = usePathname();
   const router = useRouter();
-  const [hasPredictionKey, setHasPredictionKey] = useState(false);
-  const [predictionKeyChecked, setPredictionKeyChecked] = useState(false);
-  const isPublicPredictionRoute = pathname === '/world-cup/predict';
-  const isPublicWorldCupRoute =
-    pathname === '/world-cup' && hasPredictionKey && !isAuthenticated;
 
   useEffect(() => {
     try {
-      setHasPredictionKey(Boolean(window.localStorage.getItem('worldCupPredictionKey')));
-    } catch {
-      setHasPredictionKey(false);
-    } finally {
-      setPredictionKeyChecked(true);
-    }
-  }, [pathname]);
+      window.localStorage.removeItem('worldCupPredictionKey');
+      Object.keys(window.localStorage)
+        .filter(key => key.startsWith('worldCupPredictionDrafts:'))
+        .forEach(key => window.localStorage.removeItem(key));
+    } catch {}
+  }, []);
 
   useEffect(() => {
-    if (isPublicPredictionRoute || isPublicWorldCupRoute) return;
-    if (pathname === '/world-cup' && !predictionKeyChecked) return;
     if (isLoading) return;
 
     if (pathname === '/login') {
@@ -44,25 +36,12 @@ function ProtectedLayout({ children }: { children: React.ReactNode }) {
   }, [
     isAuthenticated,
     isLoading,
-    isPublicPredictionRoute,
-    isPublicWorldCupRoute,
-    predictionKeyChecked,
     pathname,
     router,
   ]);
 
-  if (pathname === '/login' || isPublicPredictionRoute || isPublicWorldCupRoute) {
+  if (pathname === '/login') {
     return <>{children}</>;
-  }
-
-  if (pathname === '/world-cup' && !predictionKeyChecked) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-design-page">
-        <div
-          className="h-10 w-10 animate-spin rounded-full border-[3px] border-design-muted border-t-design-primary"
-        />
-      </div>
-    );
   }
 
   if (isLoading) {

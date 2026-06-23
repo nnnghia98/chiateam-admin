@@ -488,30 +488,29 @@ async function proxyJsonRequest(
   method: 'GET' | 'POST' | 'PUT' | 'DELETE'
 ) {
   const session = getSessionFromRequest(request);
-  const allowPublicMemberPrediction =
+  const isMemberPredictionRequest =
     isWorldCupMemberPredictionPath(path) && (method === 'GET' || method === 'PUT');
-  const publicMemberPredictionKey = allowPublicMemberPrediction && method === 'PUT'
+  const memberPredictionKey = isMemberPredictionRequest && method === 'PUT'
     ? getWorldCupMemberPredictionKey(path)
     : '';
   const memberOverviewKey = method === 'GET' && isWorldCupOverviewPath(path)
     ? getMemberOverviewKey(request)
     : '';
-  const allowPublicWorldCupOverview = Boolean(memberOverviewKey);
-  const allowPublicWorldCupMemberKeys = isWorldCupMemberKeyPath(path);
+  const isMemberWorldCupOverview = Boolean(memberOverviewKey);
+  const isWorldCupMemberKeysRoute = isWorldCupMemberKeyPath(path);
   const shouldSendTrustedAdminHeaders =
-    (!allowPublicMemberPrediction || method === 'PUT') &&
-    (!allowPublicWorldCupMemberKeys || Boolean(session));
+    (!isMemberPredictionRequest || method === 'PUT') &&
+    (!isWorldCupMemberKeysRoute || session?.role === 'admin');
 
-  if (
-    !session &&
-    !allowPublicMemberPrediction &&
-    !allowPublicWorldCupOverview &&
-    !allowPublicWorldCupMemberKeys
-  ) {
+  if (!session) {
     return unauthorized();
   }
 
-  if (allowPublicWorldCupOverview) {
+  if (isWorldCupMemberKeysRoute && session.role !== 'admin') {
+    return forbidden();
+  }
+
+  if (isMemberWorldCupOverview) {
     try {
       const validationResponse = await fetch(
         buildWorldCupMemberValidationUrl(request, path, memberOverviewKey),
@@ -534,10 +533,10 @@ async function proxyJsonRequest(
     }
   }
 
-  if (publicMemberPredictionKey) {
+  if (memberPredictionKey) {
     try {
       const validationResponse = await fetch(
-        buildWorldCupMemberValidationUrl(request, path, publicMemberPredictionKey),
+        buildWorldCupMemberValidationUrl(request, path, memberPredictionKey),
         {
           method: 'GET',
           headers: { 'Content-Type': 'application/json' },
@@ -576,9 +575,8 @@ async function proxyJsonRequest(
   if (
     method !== 'GET' &&
     session?.role !== 'admin' &&
-    !allowPublicMemberPrediction &&
-    !allowPublicWorldCupOverview &&
-    !allowPublicWorldCupMemberKeys
+    !isMemberPredictionRequest &&
+    !isMemberWorldCupOverview
   ) {
     if (!allowViewerMutation) {
       return forbidden();
@@ -593,7 +591,7 @@ async function proxyJsonRequest(
         ? {
             'X-Internal-Api-Auth': getInternalApiAuthToken(),
             'X-Admin-Role':
-              allowViewerMutation || session?.role === 'admin' || publicMemberPredictionKey
+              allowViewerMutation || session?.role === 'admin' || memberPredictionKey
                 ? 'admin'
                 : 'viewer',
           }
@@ -613,7 +611,7 @@ async function proxyJsonRequest(
     const contentType = response.headers.get('content-type') || '';
 
     if (contentType.includes('application/json')) {
-      const data = allowPublicWorldCupOverview
+      const data = isMemberWorldCupOverview
         ? censorWorldCupOverview(await response.json())
         : await response.json();
       return NextResponse.json(data, { status: response.status });

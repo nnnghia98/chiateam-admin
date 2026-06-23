@@ -72,6 +72,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch (error) {
       console.error('Failed to log out cleanly:', error);
     }
+    try {
+      window.sessionStorage.removeItem('worldCupPredictionKey');
+    } catch {}
     setRole(null);
   };
 
