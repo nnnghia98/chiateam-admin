@@ -453,7 +453,7 @@ export function WorldCupPredictionOverview({
   const [members, setMembers] = useState<WorldCupMember[]>([]);
   const [backendMatches, setBackendMatches] = useState<WorldCupMatch[]>([]);
   const [predictions, setPredictions] = useState<PredictionMatrix>({});
-  const [totals, setTotals] = useState<Record<string, number>>({});
+  const [preservedTotals, setPreservedTotals] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -488,7 +488,7 @@ export function WorldCupPredictionOverview({
     [members]
   );
 
-  const memberTotal = useCallback(
+  const preservedMemberTotal = useCallback(
     (member: WorldCupMember) => {
       const candidateKeys = [
         memberId(member),
@@ -501,12 +501,36 @@ export function WorldCupPredictionOverview({
       ].filter((key): key is string => Boolean(key));
 
       for (const key of candidateKeys) {
-        const value = totals[key];
+        const value = preservedTotals[key];
         if (typeof value === 'number') return value;
       }
       return 0;
     },
-    [totals]
+    [preservedTotals]
+  );
+
+  const memberCurrentRoundTotal = useCallback(
+    (member: WorldCupMember) => {
+      const idMember = memberId(member);
+      if (!idMember) return 0;
+
+      return allMatches.reduce((sum, match) => {
+        const id = scheduleMatchId(match);
+        const backendMatch =
+          backendMatchById.get(id) ?? backendMatchById.get(scheduleTeamPairKey(match));
+        const comparable = comparableMatch(match, backendMatch);
+        const result =
+          getWorldCupEffectiveStatus(comparable) === 'SETTLED'
+            ? comparable.result
+            : null;
+
+        if (result === null || result === undefined) return sum;
+
+        const entry = predictions[idMember]?.[id] ?? null;
+        return predictionOutcome(entry) === result ? sum + 1 : sum;
+      }, 0);
+    },
+    [allMatches, backendMatchById, predictions]
   );
 
   const loadOverview = useCallback(async () => {
@@ -542,7 +566,7 @@ export function WorldCupPredictionOverview({
       setBackendMatches(databaseMatches);
       setMembers(loadedMembers);
       setPredictions(loadedPredictions);
-      setTotals(response.totals ?? {});
+      setPreservedTotals(response.totals ?? {});
     } catch (loadError) {
       console.error('Failed to load World Cup prediction overview:', loadError);
       setError(t('worldCup.loadPredictionOverviewError'));
@@ -617,7 +641,9 @@ export function WorldCupPredictionOverview({
                       {member.name ?? memberId(member)}
                     </span>
                     <span className="mt-1 inline-flex rounded-full bg-design-active px-2.5 py-0.5 text-xs font-black tracking-normal text-design-primary-strong">
-                      {memberTotal(member)}
+                      <span title={`Preserved previous total: ${preservedMemberTotal(member)}`}>
+                        {memberCurrentRoundTotal(member)}
+                      </span>
                     </span>
                   </th>
                 ))}
@@ -641,7 +667,7 @@ export function WorldCupPredictionOverview({
                     className="border-b border-design-border-soft last:border-b-0 hover:bg-design-muted/50"
                   >
                     <td className="sticky left-0 z-10 bg-design-card px-4 py-4 font-black text-design-secondary">
-                      {t('worldCup.round')} {index + 1}
+                      {index + 1}
                     </td>
                     <td className="px-4 py-4">
                       <p className="text-base font-black text-design-text">

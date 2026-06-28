@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
   CheckCircle2,
   ChevronDown,
@@ -55,6 +55,17 @@ export type WorldCupScheduleGroup = {
   dateKey: string;
   dateLabel: string;
   matches: WorldCupScheduleMatch[];
+};
+
+export type WorldCupPredictionSurfaceContext = {
+  isPredictionUnlocked: boolean;
+  savingMatchId: string | null;
+  getPredictionValue: (match: WorldCupScheduleMatch) => WorldCupPickValue | '';
+  canPredictMatch: (match: WorldCupScheduleMatch) => boolean;
+  savePrediction: (
+    match: WorldCupScheduleMatch,
+    pick: WorldCupPickValue
+  ) => void;
 };
 
 type PredictionMap = Record<string, WorldCupPredictionEntry | null>;
@@ -473,8 +484,10 @@ function vietnamTodayKey() {
 
 export function WorldCupSchedule({
   groups,
+  afterPassCode,
 }: {
   groups: WorldCupScheduleGroup[];
+  afterPassCode?: (context: WorldCupPredictionSurfaceContext) => ReactNode;
 }) {
   const { locale, t } = useI18n();
   const { canEdit } = useAuth();
@@ -788,6 +801,25 @@ export function WorldCupSchedule({
     }
   };
 
+  const predictionSurfaceContext: WorldCupPredictionSurfaceContext = {
+    isPredictionUnlocked: isLoggedIn,
+    savingMatchId,
+    getPredictionValue: match => {
+      const id = scheduleMatchId(match);
+      return drafts[id] ?? predictionPick(predictions[id]);
+    },
+    canPredictMatch: match => {
+      const id = scheduleMatchId(match);
+      const backendMatch =
+        backendMatchById.get(id) ?? backendMatchById.get(scheduleTeamPairKey(match));
+      const effectiveMatch = fallbackBackendMatch(match, backendMatch);
+      return isLoggedIn && getWorldCupEffectiveStatus(effectiveMatch) === 'OPEN';
+    },
+    savePrediction: (match, pick) => {
+      void savePrediction(match, pick);
+    },
+  };
+
   return (
     <section className="space-y-5">
       <div className="rounded-airbnb border border-design-border-soft bg-design-card p-4 shadow-design-card">
@@ -872,6 +904,8 @@ export function WorldCupSchedule({
         )}
       </div>
 
+      {afterPassCode ? <div>{afterPassCode(predictionSurfaceContext)}</div> : null}
+
       {oldMatchCount > 0 && (
         <div className="flex flex-col gap-3 rounded-airbnb border border-design-border-soft bg-design-card p-3 shadow-design-card sm:flex-row sm:items-center sm:justify-between">
           <p className="text-sm font-semibold text-design-secondary">
@@ -913,12 +947,9 @@ export function WorldCupSchedule({
           </summary>
 
           <div className="hidden overflow-x-auto md:block">
-            <table className="w-full min-w-[800px] border-collapse text-sm">
+            <table className="w-full min-w-[720px] border-collapse text-sm">
               <thead>
                 <tr className="border-b border-design-border-soft bg-design-muted">
-                  <th className="w-20 px-4 py-3 text-left text-xs font-bold uppercase tracking-[0.14em] text-design-secondary">
-                    {t('worldCup.no')}
-                  </th>
                   <th className="w-28 px-4 py-3 text-left text-xs font-bold uppercase tracking-[0.14em] text-design-secondary">
                     {t('worldCup.vnTime')}
                   </th>
@@ -957,9 +988,6 @@ export function WorldCupSchedule({
                       key={`${group.dateKey}-${match.matchNumber}`}
                       className="border-b border-design-border-soft last:border-b-0 hover:bg-design-muted/70"
                     >
-                      <td className="px-4 py-4 font-black text-design-secondary">
-                        {match.matchNumber}
-                      </td>
                       <td className="px-4 py-4">
                         <p className="text-lg font-black text-design-text">
                           {match.vietnamTimeLabel}
