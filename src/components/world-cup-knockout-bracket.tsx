@@ -329,9 +329,11 @@ function winnerSide(match: WorldCupKnockoutMatch) {
 }
 
 function roundLabel(match: WorldCupKnockoutMatch) {
-  return `${match.vietnamDateLabel.replace(/,\s*2026$/, '')} · ${
-    match.vietnamTimeLabel
-  }`;
+  const [, month, day] = match.vietnamDateKey.split('-');
+
+  if (!month || !day) return `${match.vietnamTimeLabel} ${match.vietnamDateLabel}`;
+
+  return `${match.vietnamTimeLabel} ${day}/${month}`;
 }
 
 function TeamSlot({
