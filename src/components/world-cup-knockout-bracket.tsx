@@ -389,10 +389,10 @@ function TeamSlot({
     <>
       <span
         className={cn(
-          'flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[17px]',
+          'flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[17px] ring-1 ring-design-border-soft dark:ring-design-border',
           placeholder
-            ? 'bg-white/10 text-[10px] font-black tracking-[0.08em] text-white/58'
-            : 'bg-white text-black shadow-[0_0_0_1px_rgba(255,255,255,0.26)]'
+            ? 'bg-design-muted text-[10px] font-black tracking-[0.08em] text-design-secondary'
+            : 'bg-white text-black shadow-[0_2px_8px_rgba(34,34,34,0.1)]'
         )}
       >
         {badge || <CircleDotDashed className="h-4 w-4" aria-hidden="true" />}
@@ -404,7 +404,7 @@ function TeamSlot({
           value={draftValue}
           disabled={adminBusy}
           onChange={event => onScoreDraftChange(id, side, event.target.value)}
-          className="h-8 w-9 rounded-airbnb border border-white/18 bg-white/9 px-1 text-center text-sm font-black tabular-nums text-white outline-none transition focus:border-white/55 focus:bg-white/14 disabled:opacity-45"
+          className="h-8 w-9 rounded-airbnb border border-design-border-soft bg-design-card px-1 text-center text-sm font-bold tabular-nums text-design-text outline-none transition focus:border-design-primary focus:shadow-design-focus disabled:opacity-45 dark:border-design-border"
           inputMode="numeric"
           pattern="[0-9]*"
           maxLength={2}
@@ -413,10 +413,10 @@ function TeamSlot({
       ) : predictionUnlocked ? (
         <span
           className={cn(
-            'inline-flex h-7 min-w-7 shrink-0 items-center justify-center rounded-full border text-xs font-black transition',
+            'inline-flex h-7 min-w-7 shrink-0 items-center justify-center rounded-full border text-xs font-bold transition',
             isSelectedPrediction
-              ? 'border-white bg-white text-[#101943]'
-              : 'border-white/24 bg-white/8 text-white/58',
+              ? 'border-design-primary bg-design-active text-design-primary-strong dark:text-design-primary'
+              : 'border-design-border-soft bg-design-muted text-design-secondary dark:border-design-border',
             predictionBusy && 'opacity-55'
           )}
           aria-hidden="true"
@@ -440,11 +440,11 @@ function TeamSlot({
         disabled={!canSelectPrediction || predictionBusy}
         onClick={() => predictionContext?.savePrediction(match, pickValue)}
         className={cn(
-          'flex min-h-11 w-full items-center gap-3 px-4 text-left text-sm font-bold leading-none transition',
-          placeholder ? 'text-white/54' : 'text-white',
-          winner && 'text-[#fbfffe]',
-          isSelectedPrediction && 'bg-white/12 text-white',
-          canSelectPrediction && 'hover:bg-white/9',
+          'flex min-h-11 w-full items-center gap-3 px-4 text-left text-sm font-semibold leading-none text-design-text transition duration-200',
+          placeholder && 'text-design-secondary',
+          winner && 'font-bold text-design-primary-strong dark:text-design-primary',
+          isSelectedPrediction && 'bg-design-active',
+          canSelectPrediction && 'hover:bg-design-muted active:scale-[0.99]',
           (!canSelectPrediction || predictionBusy) &&
             'cursor-not-allowed disabled:opacity-75'
         )}
@@ -459,9 +459,9 @@ function TeamSlot({
   return (
     <div
       className={cn(
-        'flex min-h-11 items-center gap-3 px-4 text-sm font-bold leading-none',
-        placeholder ? 'text-white/54' : 'text-white',
-        winner && 'text-[#fbfffe]'
+        'flex min-h-11 items-center gap-3 px-4 text-sm font-semibold leading-none text-design-text',
+        placeholder && 'text-design-secondary',
+        winner && 'font-bold text-design-primary-strong dark:text-design-primary'
       )}
     >
       {content}
@@ -498,10 +498,10 @@ function MatchStatusControl({
       disabled={adminBusy}
       onClick={() => onStatusChange(match, nextStatus)}
       className={cn(
-        'ml-3 inline-flex h-8 shrink-0 items-center gap-1.5 rounded-airbnb border px-2 text-[11px] font-black uppercase tracking-[0.02em] transition',
+        'ml-3 inline-flex h-8 shrink-0 items-center gap-1.5 rounded-airbnb border px-2 text-[11px] font-bold uppercase tracking-[0.02em] transition duration-200 active:scale-95',
         isPredictionOpen
-          ? 'border-emerald-300/35 bg-emerald-300/12 text-emerald-100 hover:bg-emerald-300/18'
-          : 'border-white/18 bg-white/9 text-white/70 hover:bg-white/14',
+          ? 'border-[#ff385c]/35 bg-[#fff0f2] text-[#b00033] hover:bg-[#ffe3e9] dark:bg-[#3a1020] dark:text-[#ff385c] dark:hover:bg-[#461225]'
+          : 'border-design-border-soft bg-design-muted text-design-secondary hover:bg-design-card dark:border-design-border',
         'disabled:cursor-not-allowed disabled:opacity-55'
       )}
       aria-label={isPredictionOpen ? 'Lock match prediction' : 'Open match prediction'}
@@ -528,17 +528,17 @@ function Connector({
 
   return (
     <div
-      className="pointer-events-none absolute left-full top-1/2 hidden h-px w-9 bg-white/24 xl:block"
+      className="pointer-events-none absolute left-full top-1/2 hidden h-px w-9 bg-[#d7d7d7] dark:bg-[#3a3a3a] xl:block"
       aria-hidden="true"
     >
       <span
         className={cn(
-          'absolute right-0 w-px bg-white/24',
+          'absolute right-0 w-px bg-[#d7d7d7] dark:bg-[#3a3a3a]',
           isUpperMatch ? 'top-0' : 'bottom-0'
         )}
         style={{ height: CONNECTOR_HEIGHT[roundKey] }}
       />
-      <span className="absolute left-full top-0 h-px w-9 bg-white/24" />
+      <span className="absolute left-full top-0 h-px w-9 bg-[#d7d7d7] dark:bg-[#3a3a3a]" />
     </div>
   );
 }
@@ -580,13 +580,14 @@ function MatchCard({
   return (
     <article
       className={cn(
-        'group relative z-10 min-h-[7.25rem] overflow-visible rounded-card border text-white shadow-[0_18px_46px_rgba(0,0,0,0.28)] transition duration-200',
-        'border-white/10 bg-[#101943]/88 hover:-translate-y-0.5 hover:border-white/24 hover:bg-[#131f52]',
-        isFinal && 'border-[#ff385c]/40 bg-[#0a1234] shadow-[0_0_0_1px_rgba(255,56,92,0.22),0_22px_60px_rgba(0,0,0,0.36)]'
+        'group relative z-10 min-h-[7.25rem] overflow-visible rounded-card border bg-white text-design-text transition duration-200',
+        'border-[#d8d4d5] shadow-[0_14px_34px_rgba(34,34,34,0.16),0_0_0_1px_rgba(255,255,255,0.82)] hover:-translate-y-0.5 hover:border-[#ff385c]/45 hover:shadow-[0_18px_42px_rgba(34,34,34,0.2),0_0_0_1px_rgba(255,255,255,0.9)]',
+        'dark:border-[#3e3e42] dark:bg-[#2a2a2d] dark:shadow-[0_18px_44px_rgba(0,0,0,0.46),0_0_0_1px_rgba(255,255,255,0.04)] dark:hover:border-[#ff385c]/55 dark:hover:bg-[#303034]',
+        isFinal && 'border-[#ff385c]/70 bg-[#fff0f2] shadow-[0_0_0_1px_rgba(255,56,92,0.26),0_20px_44px_rgba(176,0,51,0.18)] dark:bg-[#34131c] dark:shadow-[0_18px_48px_rgba(0,0,0,0.5),0_0_0_1px_rgba(255,56,92,0.28)]'
       )}
     >
       <Connector roundKey={roundKey} index={index} />
-      <div className="flex min-h-10 items-center justify-between border-b border-white/20 px-4 text-[13px] font-black tracking-[0.01em] text-white/58">
+      <div className="flex min-h-10 items-center justify-between border-b border-design-border-soft px-4 text-[13px] font-bold tracking-[0.01em] text-design-secondary dark:border-design-border">
         <span className="truncate">{roundLabel(match)}</span>
         <MatchStatusControl
           match={match}
@@ -606,7 +607,7 @@ function MatchCard({
         adminBusy={adminBusy}
         onScoreDraftChange={onScoreDraftChange}
       />
-      <div className="h-px bg-white/9" />
+      <div className="h-px bg-design-border-soft dark:bg-design-border" />
       <TeamSlot
         match={match}
         side="away"
@@ -617,14 +618,14 @@ function MatchCard({
         adminBusy={adminBusy}
         onScoreDraftChange={onScoreDraftChange}
       />
-      <div className="flex items-center gap-2 border-t border-white/8 px-4 py-2 text-[11px] font-semibold text-white/40">
+      <div className="flex items-center gap-2 border-t border-design-border-soft px-4 py-2 text-[11px] font-semibold text-design-secondary dark:border-design-border">
         <span className="block truncate">{match.ground}</span>
         {canEdit && (
           <button
             type="button"
             disabled={adminBusy}
             onClick={() => onResultSave(match)}
-            className="ml-auto inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-white/16 bg-white/9 text-white transition hover:bg-white/16 disabled:cursor-not-allowed disabled:opacity-55"
+            className="ml-auto inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-design-border-soft bg-design-muted text-design-text transition duration-200 hover:border-[#ff385c]/45 hover:bg-design-active active:scale-95 disabled:cursor-not-allowed disabled:opacity-55 dark:border-design-border"
             aria-label="Save match result"
           >
             {adminBusy ? (
@@ -642,11 +643,11 @@ function MatchCard({
 function RoundColumnHeader({ config }: { config: RoundConfig }) {
   return (
     <div
-      className="z-20 flex h-10 items-center justify-between rounded-airbnb border border-white/10 bg-white/8 px-3 text-white backdrop-blur"
+      className="z-20 flex h-10 items-center justify-between rounded-airbnb border border-[#d8d4d5] bg-white px-3 text-design-text shadow-[0_8px_22px_rgba(34,34,34,0.12),inset_0_1px_0_rgba(255,255,255,0.85)] dark:border-[#3e3e42] dark:bg-[#2a2a2d] dark:shadow-[0_12px_28px_rgba(0,0,0,0.34),inset_0_1px_0_rgba(255,255,255,0.05)]"
       style={{ gridColumn: config.column }}
     >
-      <span className="text-sm font-black">{config.label}</span>
-      <span className="text-xs font-semibold text-white/48">{config.title}</span>
+      <span className="text-sm font-bold">{config.label}</span>
+      <span className="text-xs font-semibold text-design-secondary">{config.title}</span>
     </div>
   );
 }
@@ -811,13 +812,14 @@ export function WorldCupKnockoutBracket({
   };
 
   return (
-    <section className="overflow-hidden rounded-large bg-[#26347f] text-white shadow-[0_24px_70px_rgba(17,17,17,0.22)]">
+    <section className="overflow-hidden rounded-large border border-[#d6d1d2] bg-[#e4e0e1] text-design-text shadow-design-card dark:border-[#303034] dark:bg-[#131315]">
       <div className="relative isolate overflow-hidden px-4 py-6 sm:px-6 lg:px-8">
-        <div className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_22%_0%,rgba(255,255,255,0.12),transparent_26%),linear-gradient(180deg,#2d3989_0%,#1d286d_45%,#101842_100%)]" />
-        <div className="absolute inset-x-0 top-0 -z-10 h-40 bg-[linear-gradient(90deg,rgba(255,56,92,0.22),transparent_35%,rgba(255,255,255,0.08)_70%,transparent)]" />
+        <div className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_12%_0%,rgba(255,56,92,0.11),transparent_28%),radial-gradient(circle_at_88%_10%,rgba(34,34,34,0.1),transparent_23%),linear-gradient(180deg,#ece7e8_0%,#dedadb_58%,#d5d1d2_100%)] dark:bg-[radial-gradient(circle_at_12%_0%,rgba(255,56,92,0.2),transparent_30%),radial-gradient(circle_at_92%_8%,rgba(255,255,255,0.08),transparent_24%),linear-gradient(180deg,#18181a_0%,#101012_100%)]" />
+        <div className="absolute inset-x-8 top-0 -z-10 h-px bg-[linear-gradient(90deg,transparent,rgba(255,56,92,0.55),transparent)]" />
+        <div className="pointer-events-none absolute inset-0 -z-10 opacity-[0.035] [background-image:radial-gradient(circle_at_1px_1px,#222_1px,transparent_0)] [background-size:12px_12px] dark:opacity-[0.08]" />
 
         <div className="mx-auto flex max-w-4xl flex-col items-center text-center">
-          <div className="relative h-20 w-20 overflow-hidden rounded-[18px] bg-white p-2 shadow-[0_10px_32px_rgba(0,0,0,0.22)]">
+          <div className="relative h-20 w-20 overflow-hidden rounded-card bg-white p-2 shadow-design-card ring-1 ring-design-border-soft">
             <Image
               src="/fifa-world-cup-2026.png"
               alt="FIFA World Cup 2026"
@@ -827,10 +829,10 @@ export function WorldCupKnockoutBracket({
               priority
             />
           </div>
-          <p className="mt-5 text-xs font-black uppercase tracking-[0.18em] text-white/50">
+          <p className="mt-5 text-xs font-bold uppercase tracking-[0.18em] text-design-secondary">
             Knockout bracket
           </p>
-          <h2 className="mt-2 text-3xl font-black leading-tight tracking-[-0.02em] text-white sm:text-4xl">
+          <h2 className="mt-2 text-3xl font-bold leading-tight tracking-[-0.02em] text-design-text sm:text-4xl">
             FIFA World Cup 2026
           </h2>
         </div>
@@ -889,18 +891,18 @@ export function WorldCupKnockoutBracket({
         </div>
 
         {bronzeMatch && (
-          <div className="mx-auto mt-1 flex max-w-6xl items-center justify-between gap-4 rounded-card border border-white/10 bg-white/8 px-4 py-3 text-sm text-white/70">
+          <div className="mx-auto mt-1 flex max-w-6xl items-center justify-between gap-4 rounded-card border border-[#d8d4d5] bg-white px-4 py-3 text-sm text-design-secondary shadow-[0_14px_34px_rgba(34,34,34,0.14),0_0_0_1px_rgba(255,255,255,0.78)] dark:border-[#3e3e42] dark:bg-[#2a2a2d] dark:shadow-[0_16px_38px_rgba(0,0,0,0.42)]">
             <div>
-              <p className="text-xs font-black uppercase tracking-[0.16em] text-white/40">
+              <p className="text-xs font-bold uppercase tracking-[0.16em] text-design-secondary">
                 Third place
               </p>
-              <p className="mt-1 font-bold text-white">
+              <p className="mt-1 font-bold text-design-text">
                 {bronzeMatch.team1} vs {bronzeMatch.team2}
               </p>
             </div>
             <p className="text-right text-xs font-semibold">
               {roundLabel(bronzeMatch)}
-              <span className="block text-white/42">{bronzeMatch.ground}</span>
+              <span className="block text-design-secondary">{bronzeMatch.ground}</span>
             </p>
           </div>
         )}
