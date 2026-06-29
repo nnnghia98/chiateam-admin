@@ -71,6 +71,10 @@ function sortMembers(members: WorldCupMemberKey[]) {
     );
 }
 
+function logHandledMemberPassCodeError(message: string, error: unknown) {
+  console.warn(message, error);
+}
+
 export function WorldCupMemberManager() {
   const { canEdit, isLoading } = useAuth();
   const { t } = useI18n();
@@ -92,7 +96,10 @@ export function WorldCupMemberManager() {
       const response = await apiClient.getWorldCupMemberKeys();
       setMembers(normalizeKeyResponse(response));
     } catch (loadError) {
-      console.error('Failed to load World Cup member pass codes:', loadError);
+      logHandledMemberPassCodeError(
+        'Failed to load World Cup member pass codes:',
+        loadError
+      );
       setError(t('worldCup.loadPassCodesError'));
     } finally {
       setLoading(false);
@@ -136,7 +143,10 @@ export function WorldCupMemberManager() {
       setMemberIdValue('');
       setName('');
     } catch (createError) {
-      console.error('Failed to create World Cup member pass code:', createError);
+      logHandledMemberPassCodeError(
+        'Failed to create World Cup member pass code:',
+        createError
+      );
       setError(t('worldCup.createPassCodeError'));
     } finally {
       setSaving(false);
@@ -157,7 +167,10 @@ export function WorldCupMemberManager() {
       const response = await apiClient.regenerateWorldCupMemberKey(id);
       upsertMember(normalizeMutationResponse(response));
     } catch (regenerateError) {
-      console.error('Failed to regenerate World Cup pass code:', regenerateError);
+      logHandledMemberPassCodeError(
+        'Failed to regenerate World Cup pass code:',
+        regenerateError
+      );
       setError(t('worldCup.regeneratePassCodeError'));
     } finally {
       setSaving(false);
@@ -174,7 +187,10 @@ export function WorldCupMemberManager() {
       await apiClient.deleteWorldCupMemberKey(id);
       setMembers(previous => previous.filter(item => memberId(item) !== id));
     } catch (deleteError) {
-      console.error('Failed to delete World Cup pass code:', deleteError);
+      logHandledMemberPassCodeError(
+        'Failed to delete World Cup pass code:',
+        deleteError
+      );
       setError(t('worldCup.deletePassCodeError'));
     } finally {
       setSaving(false);

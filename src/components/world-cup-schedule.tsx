@@ -658,12 +658,13 @@ export function WorldCupSchedule({
     const effectiveMatch = fallbackBackendMatch(match, backendMatch);
     if (getWorldCupEffectiveStatus(effectiveMatch) !== 'OPEN') return;
 
-    const prediction = pickToOutcome(pick);
     const previousValue = drafts[id] ?? predictionPick(predictions[id]);
-    if (prediction === null) {
+    if (pick !== '1' && pick !== '2') {
       setError(t('worldCup.choosePredictionError'));
       return;
     }
+    const prediction = pickToOutcome(pick);
+    if (prediction === null) return;
 
     try {
       setSavingMatchId(id);
@@ -1092,7 +1093,6 @@ export function WorldCupSchedule({
                             <option value="">-</option>
                             <option value="1">{match.team1}</option>
                             <option value="2">{match.team2}</option>
-                            <option value="0">{t('worldCup.draw')}</option>
                           </select>
                           {predictionBusy && (
                             <span className="pointer-events-none absolute inset-y-0 right-7 flex items-center text-design-primary">
@@ -1276,7 +1276,6 @@ export function WorldCupSchedule({
                         <option value="">-</option>
                         <option value="1">{match.team1}</option>
                         <option value="2">{match.team2}</option>
-                        <option value="0">{t('worldCup.draw')}</option>
                       </select>
                       {predictionBusy && (
                         <span className="pointer-events-none absolute inset-y-0 right-8 flex items-center text-design-primary">
