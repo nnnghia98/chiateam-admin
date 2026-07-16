@@ -24,7 +24,7 @@ import type {
   WorldCupPickValue,
 } from '@/types/world-cup';
 
-type RoundKey = 'r32' | 'r16' | 'qf' | 'sf' | 'final';
+type RoundKey = 'r32' | 'r16' | 'qf' | 'sf' | 'thirdPlace' | 'final';
 
 type WorldCupKnockoutMatch = WorldCupScheduleMatch;
 
@@ -68,11 +68,18 @@ const ROUND_CONFIGS: RoundConfig[] = [
     column: 4,
   },
   {
+    key: 'thirdPlace',
+    label: '3RD',
+    title: 'Third place',
+    round: 'Match for third place',
+    column: 5,
+  },
+  {
     key: 'final',
     label: 'F',
     title: 'Final',
     round: 'Final',
-    column: 5,
+    column: 6,
   },
 ];
 
@@ -81,6 +88,7 @@ const ROUND_MATCH_ORDER: Partial<Record<RoundKey, number[]>> = {
   r16: [89, 90, 93, 94, 91, 92, 95, 96],
   qf: [97, 98, 99, 100],
   sf: [101, 102],
+  thirdPlace: [103],
   final: [104],
 };
 
@@ -140,6 +148,7 @@ const ROUND_ROW_SPAN: Record<RoundKey, number> = {
   r16: 4,
   qf: 8,
   sf: 16,
+  thirdPlace: 32,
   final: 32,
 };
 
@@ -148,6 +157,7 @@ const CONNECTOR_HEIGHT: Record<RoundKey, string> = {
   r16: '22rem',
   qf: '44rem',
   sf: '88rem',
+  thirdPlace: '0',
   final: '0',
 };
 
@@ -293,7 +303,7 @@ function fallbackBackendMatch(
 }
 
 function gridRowForRound(key: RoundKey, index: number) {
-  if (key === 'final') return '1 / span 32';
+  if (key === 'thirdPlace' || key === 'final') return '1 / span 32';
 
   const span = ROUND_ROW_SPAN[key];
   return `${index * span + 1} / span ${span}`;
@@ -522,7 +532,7 @@ function Connector({
   roundKey: RoundKey;
   index: number;
 }) {
-  if (roundKey === 'final') return null;
+  if (roundKey === 'thirdPlace' || roundKey === 'final') return null;
 
   const isUpperMatch = index % 2 === 0;
 
@@ -669,9 +679,6 @@ export function WorldCupKnockoutBracket({
       matchesForRound(matches, config),
     ])
   );
-  const bronzeMatch = matches
-    .filter(match => match.round === 'Match for third place')
-    .sort((left, right) => left.matchNumber - right.matchNumber)[0];
   const backendMatchById = useMemo(
     () => indexedBackendMatches(backendMatches),
     [backendMatches]
@@ -841,7 +848,7 @@ export function WorldCupKnockoutBracket({
           <div
             className="grid min-w-[86rem] gap-x-12 pb-2"
             style={{
-              gridTemplateColumns: 'repeat(5, minmax(15.5rem, 1fr))',
+              gridTemplateColumns: 'repeat(6, minmax(15.5rem, 1fr))',
               gridTemplateRows: 'repeat(32, 5.5rem)',
             }}
           >
@@ -890,22 +897,6 @@ export function WorldCupKnockoutBracket({
           </div>
         </div>
 
-        {bronzeMatch && (
-          <div className="mx-auto mt-1 flex max-w-6xl items-center justify-between gap-4 rounded-card border border-[#d8d4d5] bg-white px-4 py-3 text-sm text-design-secondary shadow-[0_14px_34px_rgba(34,34,34,0.14),0_0_0_1px_rgba(255,255,255,0.78)] dark:border-[#3e3e42] dark:bg-[#2a2a2d] dark:shadow-[0_16px_38px_rgba(0,0,0,0.42)]">
-            <div>
-              <p className="text-xs font-bold uppercase tracking-[0.16em] text-design-secondary">
-                Third place
-              </p>
-              <p className="mt-1 font-bold text-design-text">
-                {bronzeMatch.team1} vs {bronzeMatch.team2}
-              </p>
-            </div>
-            <p className="text-right text-xs font-semibold">
-              {roundLabel(bronzeMatch)}
-              <span className="block text-design-secondary">{bronzeMatch.ground}</span>
-            </p>
-          </div>
-        )}
       </div>
     </section>
   );
