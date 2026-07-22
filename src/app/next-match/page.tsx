@@ -9,7 +9,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
   RefreshCw,
-  Save,
   Trash2,
   Plus,
   X,
@@ -649,17 +648,6 @@ export default function NextMatchPage() {
                 <RefreshCw className="w-4 h-4 mr-1" />
                 Refresh
               </Button>
-              {canRenamePlayers && (
-                <Button
-                  size="sm"
-                  onClick={() => void save()}
-                  disabled={saving || !dirty}
-                  className="h-9 rounded-airbnb bg-[#222222] text-white hover:bg-[#333] dark:bg-[#ff385c] dark:hover:bg-[#e00b41]"
-                >
-                  <Save className="w-4 h-4 mr-1" />
-                  {saving ? 'Saving…' : dirty ? 'Save' : 'Saved'}
-                </Button>
-              )}
             </div>
           </div>
 
