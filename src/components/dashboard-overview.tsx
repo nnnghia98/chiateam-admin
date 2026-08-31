@@ -106,7 +106,7 @@ export function DashboardOverview() {
 
       const [players, matches, leaderboard] = await Promise.all([
         apiClient.getPlayers() as Promise<Player[]>,
-        apiClient.getMatches() as Promise<Match[]>,
+        apiClient.getMatches(),
         apiClient.getLeaderboard() as Promise<LeaderboardEntry[]>,
       ]);
 

@@ -1,37 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import worldCupData from '@/data/world-cup-2026.json';
 import { getInternalApiAuthToken, getSessionFromRequest } from '@/lib/auth';
+import {
+  botStorageOnlyRenamesPlayers,
+  mergeBotStoragePlayerNames,
+} from '@/lib/bot-storage';
 import { worldCupMatchStartTime } from '@/lib/world-cup-time';
 
 export const runtime = 'nodejs';
 
 const API_URL = process.env.API_INTERNAL_URL;
-const PLAYER_LIST_FIELDS = [
-  'bench',
-  'teamA',
-  'teamB',
-  'team3A',
-  'team3B',
-  'team3C',
-] as const;
-const BOT_STORAGE_STATIC_FIELDS = [
-  'tiensan',
-  'tiennuoc',
-  'teamThua',
-  'activeVote',
-] as const;
-const BOT_STORAGE_FIELDS = new Set<string>([
-  ...PLAYER_LIST_FIELDS,
-  ...BOT_STORAGE_STATIC_FIELDS,
-]);
 
 type ProxyRouteContext = {
   params: Promise<{ path: string[] }>;
-};
-type NormalizedPlayerEntry = {
-  key: string;
-  name: string;
-  metadata: string;
 };
 
 type RawWorldCupScheduleMatch = {
@@ -107,19 +88,6 @@ function forbidden() {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value && typeof value === 'object' && !Array.isArray(value));
-}
-
-function stableStringify(value: unknown): string {
-  if (value === undefined) return 'undefined';
-  if (!isRecord(value) && !Array.isArray(value)) return JSON.stringify(value);
-  if (Array.isArray(value)) {
-    return `[${value.map(item => stableStringify(item)).join(',')}]`;
-  }
-
-  return `{${Object.entries(value)
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([key, item]) => `${JSON.stringify(key)}:${stableStringify(item)}`)
-    .join(',')}}`;
 }
 
 function isBotStorageSavePath(path: string[]) {
@@ -278,147 +246,6 @@ function normalizeAvatarValue(value: unknown) {
   if (typeof value !== 'string') return undefined;
   const trimmed = value.trim();
   return trimmed || null;
-}
-
-function normalizePlayerEntry(entry: unknown): NormalizedPlayerEntry | null {
-  if (!Array.isArray(entry) || entry.length < 2) return null;
-
-  const [rawKey, rawValue] = entry;
-  let name: string;
-  let metadata: Record<string, unknown> = {};
-
-  if (isRecord(rawValue)) {
-    const { name: rawName, ...rest } = rawValue;
-    if (rawName == null) {
-      name = String(rawKey);
-    } else if (typeof rawName === 'string' || typeof rawName === 'number') {
-      name = String(rawName);
-    } else {
-      return null;
-    }
-    metadata = rest;
-  } else if (rawValue == null) {
-    name = String(rawKey);
-  } else if (typeof rawValue === 'string' || typeof rawValue === 'number') {
-    name = String(rawValue);
-  } else {
-    return null;
-  }
-
-  return {
-    key: String(rawKey),
-    name,
-    metadata: stableStringify(metadata),
-  };
-}
-
-function normalizePlayerList(
-  storage: Record<string, unknown>,
-  field: (typeof PLAYER_LIST_FIELDS)[number]
-): NormalizedPlayerEntry[] | null {
-  const entries = storage[field] ?? [];
-  if (!Array.isArray(entries)) return null;
-
-  const normalized: NormalizedPlayerEntry[] = [];
-  for (const entry of entries) {
-    const player = normalizePlayerEntry(entry);
-    if (!player) return null;
-    normalized.push(player);
-  }
-
-  return normalized;
-}
-
-function botStorageOnlyRenamesPlayers(
-  current: Record<string, unknown>,
-  requested: Record<string, unknown>
-) {
-  if (Object.keys(requested).some(key => !BOT_STORAGE_FIELDS.has(key))) {
-    return false;
-  }
-
-  const currentStatic = Object.fromEntries(
-    BOT_STORAGE_STATIC_FIELDS.map(field => [
-      field,
-      field === 'teamThua'
-        ? (current[field] ?? null)
-        : field === 'activeVote'
-          ? (current[field] ?? null)
-          : (current[field] ?? 0),
-    ])
-  );
-  const requestedStatic = Object.fromEntries(
-    BOT_STORAGE_STATIC_FIELDS.map(field => [
-      field,
-      field === 'teamThua'
-        ? (requested[field] ?? null)
-        : field === 'activeVote'
-          ? (requested[field] ?? null)
-          : (requested[field] ?? 0),
-    ])
-  );
-
-  if (stableStringify(currentStatic) !== stableStringify(requestedStatic)) {
-    return false;
-  }
-
-  return PLAYER_LIST_FIELDS.every(field => {
-    const currentPlayers = normalizePlayerList(current, field);
-    const requestedPlayers = normalizePlayerList(requested, field);
-    if (!currentPlayers || !requestedPlayers) return false;
-    if (currentPlayers.length !== requestedPlayers.length) return false;
-
-    return currentPlayers.every((player, index) => {
-      const requestedPlayer = requestedPlayers[index];
-      return (
-        requestedPlayer &&
-        requestedPlayer.name.trim().length > 0 &&
-        player.key === requestedPlayer.key
-      );
-    });
-  });
-}
-
-function withPlayerEntryName(entry: unknown, name: string) {
-  if (!Array.isArray(entry) || entry.length < 2) return null;
-
-  const [rawKey, rawValue] = entry;
-  if (isRecord(rawValue)) {
-    return [rawKey, { ...rawValue, name }];
-  }
-
-  return [rawKey, name];
-}
-
-function mergeBotStoragePlayerNames(
-  current: Record<string, unknown>,
-  requested: Record<string, unknown>
-) {
-  const merged = Object.fromEntries(
-    BOT_STORAGE_STATIC_FIELDS.map(field => [
-      field,
-      field === 'teamThua'
-        ? (current[field] ?? null)
-        : field === 'activeVote'
-          ? (current[field] ?? null)
-          : (current[field] ?? 0),
-    ])
-  );
-
-  for (const field of PLAYER_LIST_FIELDS) {
-    const currentEntries = current[field] ?? [];
-    const requestedPlayers = normalizePlayerList(requested, field);
-    if (!Array.isArray(currentEntries) || !requestedPlayers) return null;
-
-    const mergedEntries = currentEntries.map((entry, index) =>
-      withPlayerEntryName(entry, requestedPlayers[index].name)
-    );
-    if (mergedEntries.some(entry => entry === null)) return null;
-
-    merged[field] = mergedEntries;
-  }
-
-  return merged;
 }
 
 async function getViewerBotStorageRenameBody(

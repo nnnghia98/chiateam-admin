@@ -10,6 +10,12 @@ import type {
   WorldCupOutcome,
   WorldCupOverallResponse,
 } from '@/types/world-cup';
+import { toMatchWritePayload } from '@/lib/match';
+import type {
+  CreateMatchData,
+  Match,
+  UpdateMatchData,
+} from '@/types/match';
 
 // Browser requests always go through the Next.js proxy route.
 const API_URL = '/api/proxy';
@@ -69,24 +75,24 @@ class ApiClient {
 
   // Matches
   async getMatches() {
-    return this.fetch<any[]>('/api/matches');
+    return this.fetch<Match[]>('/api/matches');
   }
 
   async getMatch(date: string) {
-    return this.fetch<any>(`/api/matches/${date}`);
+    return this.fetch<Match>(`/api/matches/${date}`);
   }
 
-  async createMatch(data: any) {
-    return this.fetch<any>('/api/matches', {
+  async createMatch(data: CreateMatchData) {
+    return this.fetch<Match>('/api/matches', {
       method: 'POST',
-      body: JSON.stringify(data),
+      body: JSON.stringify(toMatchWritePayload(data)),
     });
   }
 
-  async updateMatch(date: string, data: any) {
-    return this.fetch<any>(`/api/matches/${date}`, {
+  async updateMatch(date: string, data: UpdateMatchData) {
+    return this.fetch<Match>(`/api/matches/${date}`, {
       method: 'PUT',
-      body: JSON.stringify(data),
+      body: JSON.stringify(toMatchWritePayload(data)),
     });
   }
 

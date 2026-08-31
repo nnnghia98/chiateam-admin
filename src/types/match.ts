@@ -5,21 +5,21 @@ export interface Match {
   tiensan: number | null;
   home_score: number | null;
   away_score: number | null;
+  winner_side: 'HOME' | 'AWAY' | null;
   notes: string | null;
   created_at: string;
   updated_at: string;
 }
 
 export interface MatchPlayer {
-  id: number;
-  match_id: number;
-  player_id: number | null;
-  side: 'home' | 'away' | 'extra';
-  display_name: string | null;
-  player?: {
-    name: string;
-    number: number;
-  };
+  playerId: string | number;
+  displayName: string;
+  name: string;
+  number: number | null;
+  label: string;
+  goals?: number;
+  assists?: number;
+  isMvp?: boolean;
 }
 
 export interface MatchPlayerStats {

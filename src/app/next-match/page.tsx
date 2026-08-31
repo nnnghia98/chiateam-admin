@@ -1,9 +1,21 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { DragDropProvider, useDraggable, useDroppable } from '@dnd-kit/react';
 import { apiClient } from '@/lib/api-client';
 import { useAuth } from '@/contexts/auth-context';
+import {
+  getVoteSelectionIndexes,
+  getVoteVoterName,
+  getBotStorageEditedFields,
+  mergeBotStorageEdits,
+  rawToStorage,
+} from '@/lib/bot-storage';
+import type {
+  BotPlayer,
+  BotStorage,
+  TeamKey,
+} from '@/lib/bot-storage';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -20,91 +32,7 @@ import {
   Check,
 } from 'lucide-react';
 
-// ─── Types ───────────────────────────────────────────────────────────────────
-
-interface BotPlayer {
-  key: string;
-  name: string;
-  userId?: number;
-}
-
-interface ActiveVote {
-  id: string;
-  question: string;
-  options: string[];
-  createdBy: string;
-  createdAt: string;
-  totalVoters: number;
-  votes: Record<string, { id: number; name: string; options: number[] }>;
-}
-
-type TeamKey = 'bench' | 'teamA' | 'teamB' | 'team3A' | 'team3B' | 'team3C';
-
-interface BotStorage {
-  bench: BotPlayer[];
-  teamA: BotPlayer[];
-  teamB: BotPlayer[];
-  team3A: BotPlayer[];
-  team3B: BotPlayer[];
-  team3C: BotPlayer[];
-  tiensan: number;
-  tiennuoc: number;
-  teamThua: string | null;
-  activeVote: ActiveVote | null;
-  lastUpdated: string | null;
-}
-
 // ─── Helpers ─────────────────────────────────────────────────────────────────
-
-function rawToPlayers(entries: [any, any][]): BotPlayer[] {
-  if (!Array.isArray(entries)) return [];
-  return entries.map(([key, value]) => ({
-    key: String(key),
-    name: typeof value === 'string' ? value : (value?.name ?? String(key)),
-    userId: typeof value === 'object' ? value?.userId : undefined,
-  }));
-}
-
-function playersToRaw(players: BotPlayer[]): [any, any][] {
-  return players.map(p => {
-    const numKey = Number(p.key);
-    const rawKey = !isNaN(numKey) && String(numKey) === p.key ? numKey : p.key;
-    const rawValue =
-      p.userId != null ? { name: p.name, userId: p.userId } : { name: p.name };
-    return [rawKey, rawValue];
-  });
-}
-
-function rawToStorage(raw: any): BotStorage {
-  return {
-    bench: rawToPlayers(raw.bench ?? []),
-    teamA: rawToPlayers(raw.teamA ?? []),
-    teamB: rawToPlayers(raw.teamB ?? []),
-    team3A: rawToPlayers(raw.team3A ?? []),
-    team3B: rawToPlayers(raw.team3B ?? []),
-    team3C: rawToPlayers(raw.team3C ?? []),
-    tiensan: raw.tiensan ?? 0,
-    tiennuoc: raw.tiennuoc ?? 0,
-    teamThua: raw.teamThua ?? null,
-    activeVote: raw.activeVote ?? null,
-    lastUpdated: raw.lastUpdated ?? null,
-  };
-}
-
-function storageToRaw(storage: BotStorage): any {
-  return {
-    bench: playersToRaw(storage.bench),
-    teamA: playersToRaw(storage.teamA),
-    teamB: playersToRaw(storage.teamB),
-    team3A: playersToRaw(storage.team3A),
-    team3B: playersToRaw(storage.team3B),
-    team3C: playersToRaw(storage.team3C),
-    tiensan: storage.tiensan,
-    tiennuoc: storage.tiennuoc,
-    teamThua: storage.teamThua,
-    activeVote: storage.activeVote,
-  };
-}
 
 const TEAM_LABELS: Record<TeamKey, string> = {
   bench: 'Bench',
@@ -337,13 +265,17 @@ function TeamColumn({
 
 export default function NextMatchPage() {
   const { canEdit, role } = useAuth();
-  const canRenamePlayers = role === 'admin' || role === 'viewer';
   const [storage, setStorage] = useState<BotStorage | null>(null);
+  const loadedStorageRef = useRef<BotStorage | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [dirty, setDirty] = useState(false);
   const [teamMode, setTeamMode] = useState<'2' | '3'>('2');
+  const storageLocked = saving || syncing;
+  const canEditStorage = canEdit && !storageLocked;
+  const canRenamePlayers = role === 'admin' || role === 'viewer';
+  const canRenameStorage = canRenamePlayers && !storageLocked;
 
   // Drag state
   // (handled by @dnd-kit/react DragDropProvider)
@@ -365,6 +297,7 @@ export default function NextMatchPage() {
       const raw = await apiClient.getBotStorage();
       const parsed = rawToStorage(raw);
       setStorage(parsed);
+      loadedStorageRef.current = parsed;
       setDirty(false);
       // Auto-detect 3-team mode from loaded data
       if (
@@ -389,9 +322,10 @@ export default function NextMatchPage() {
   // ── Mutators ──────────────────────────────────────────────────────────────
 
   const mutate = useCallback((fn: (_s: BotStorage) => BotStorage) => {
+    if (storageLocked) return;
     setStorage(prev => (prev ? fn(prev) : prev));
     setDirty(true);
-  }, []);
+  }, [storageLocked]);
 
   const movePlayer = (fromTeam: TeamKey, toTeam: TeamKey, key: string) => {
     if (fromTeam === toTeam) return;
@@ -435,11 +369,19 @@ export default function NextMatchPage() {
   // ── Save ──────────────────────────────────────────────────────────────────
 
   const save = async () => {
-    if (!storage) return;
+    if (!storage || !loadedStorageRef.current || storageLocked) return;
     try {
       setSaving(true);
-      const raw = await apiClient.saveBotStorage(storageToRaw(storage));
-      setStorage(rawToStorage(raw));
+      const currentStorage = await apiClient.getBotStorage();
+      const editedFields = getBotStorageEditedFields(
+        loadedStorageRef.current,
+        storage
+      );
+      const nextStorage = mergeBotStorageEdits(currentStorage, editedFields);
+      const raw = await apiClient.saveBotStorage(nextStorage);
+      const parsed = rawToStorage(raw);
+      setStorage(parsed);
+      loadedStorageRef.current = parsed;
       setDirty(false);
     } catch (e) {
       console.error(e);
@@ -452,11 +394,14 @@ export default function NextMatchPage() {
   // ── Sync from vote ─────────────────────────────────────────────────────────
 
   const syncFromVote = async () => {
+    if (storageLocked) return;
     if (!confirm('Sync players from active vote to bench?')) return;
     try {
       setSyncing(true);
       const result = await apiClient.syncBotStorageFromVote();
-      setStorage(rawToStorage(result.storage));
+      const parsed = rawToStorage(result.storage);
+      setStorage(parsed);
+      loadedStorageRef.current = parsed;
       setDirty(false);
       alert(
         `Synced!\n✅ Added (${result.addedCount}): ${result.addedNames.join(', ') || 'none'}\n⏭️ Skipped (${result.skippedCount}): ${result.skippedNames.join(', ') || 'none'}`
@@ -476,12 +421,15 @@ export default function NextMatchPage() {
   // ── Reset all ─────────────────────────────────────────────────────────────
 
   const resetAll = async () => {
+    if (storageLocked) return;
     if (!confirm('Reset all storage to defaults? This cannot be undone.'))
       return;
     try {
       setSaving(true);
       const raw = await apiClient.resetBotStorage();
-      setStorage(rawToStorage(raw));
+      const parsed = rawToStorage(raw);
+      setStorage(parsed);
+      loadedStorageRef.current = parsed;
       setDirty(false);
     } catch (e) {
       console.error(e);
@@ -540,10 +488,14 @@ export default function NextMatchPage() {
     (sum, teamKey) => sum + storage[teamKey].length,
     0
   );
-  const totalCost = storage.tiensan + storage.tiennuoc;
+  const tiensan = storage.tiensan ?? 0;
+  const tiennuoc = storage.tiennuoc ?? 0;
+  const teamThua =
+    typeof storage.teamThua === 'string' ? storage.teamThua : null;
+  const totalCost = tiensan + tiennuoc;
   const costPerPlayer =
     activePlayerCount > 0 ? Math.round(totalCost / activePlayerCount) : 0;
-  const losingTeamKey = resolveTeamKey(storage.teamThua, pitchTeamKeys);
+  const losingTeamKey = resolveTeamKey(teamThua, pitchTeamKeys);
   const winnerTeamKeys = losingTeamKey
     ? pitchTeamKeys.filter(teamKey => teamKey !== losingTeamKey)
     : [];
@@ -555,9 +507,9 @@ export default function NextMatchPage() {
     0
   );
   const waterPerPlayer =
-    activePlayerCount > 0 ? Math.round(storage.tiennuoc / activePlayerCount) : 0;
+    activePlayerCount > 0 ? Math.round(tiennuoc / activePlayerCount) : 0;
   const losingFieldPerPlayer =
-    losingPlayerCount > 0 ? Math.round(storage.tiensan / losingPlayerCount) : 0;
+    losingPlayerCount > 0 ? Math.round(tiensan / losingPlayerCount) : 0;
   const losingCostPerPlayer =
     losingTeamKey && losingPlayerCount > 0
       ? losingFieldPerPlayer + waterPerPlayer
@@ -569,6 +521,15 @@ export default function NextMatchPage() {
   );
   const winnerTeamLabel =
     winnerTeamKeys.map(teamKey => TEAM_LABELS[teamKey]).join(' + ') || 'Winner';
+  const activeVoteOptions = Array.isArray(storage.activeVote?.options)
+    ? storage.activeVote.options
+    : [];
+  const activeVoteEntries =
+    storage.activeVote?.votes &&
+    typeof storage.activeVote.votes === 'object' &&
+    !Array.isArray(storage.activeVote.votes)
+      ? Object.entries(storage.activeVote.votes)
+      : [];
 
   return (
     <DragDropProvider onDragEnd={handleDragEnd}>
@@ -580,10 +541,10 @@ export default function NextMatchPage() {
             {canRenamePlayers && (
               <button
                 onClick={() => void save()}
-                disabled={saving}
+                disabled={storageLocked}
                 className="text-xs font-semibold text-amber-800 dark:text-amber-300 underline underline-offset-2"
               >
-                {saving ? 'Saving…' : 'Save now'}
+                {saving ? 'Saving…' : syncing ? 'Syncing…' : 'Save now'}
               </button>
             )}
           </div>
@@ -617,7 +578,7 @@ export default function NextMatchPage() {
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
-              {canEdit && (
+              {canEditStorage && (
                 <>
                   <Input
                     placeholder="Player name"
@@ -642,6 +603,7 @@ export default function NextMatchPage() {
               <Button
                 variant="outline"
                 size="sm"
+                disabled={storageLocked}
                 onClick={() => void load()}
                 className="h-9 rounded-airbnb border-[#c1c1c1] text-[#222] dark:border-[#2e2e2e] dark:text-[#f5f5f5] dark:hover:bg-[#2a2a2a]"
               >
@@ -659,8 +621,8 @@ export default function NextMatchPage() {
                     key={teamKey}
                     teamKey={teamKey}
                     players={storage[teamKey]}
-                    canEdit={canEdit}
-                    canRename={canRenamePlayers}
+                    canEdit={canEditStorage}
+                    canRename={canRenameStorage}
                     onRemove={key => removePlayer(teamKey, key)}
                     onRename={(key, name) => renamePlayer(teamKey, key, name)}
                     onClear={() => clearTeam(teamKey)}
@@ -672,8 +634,8 @@ export default function NextMatchPage() {
                 <TeamColumn
                   teamKey="bench"
                   players={storage.bench}
-                  canEdit={canEdit}
-                  canRename={canRenamePlayers}
+                  canEdit={canEditStorage}
+                  canRename={canRenameStorage}
                   onRemove={key => removePlayer('bench', key)}
                   onRename={(key, name) => renamePlayer('bench', key, name)}
                   onClear={() => clearTeam('bench')}
@@ -684,8 +646,8 @@ export default function NextMatchPage() {
                       key={teamKey}
                       teamKey={teamKey}
                       players={storage[teamKey]}
-                      canEdit={canEdit}
-                      canRename={canRenamePlayers}
+                      canEdit={canEditStorage}
+                      canRename={canRenameStorage}
                       onRemove={key => removePlayer(teamKey, key)}
                       onRename={(key, name) => renamePlayer(teamKey, key, name)}
                       onClear={() => clearTeam(teamKey)}
@@ -780,12 +742,12 @@ export default function NextMatchPage() {
                 ) : (
                   <div className="mt-2 flex items-center justify-between gap-3">
                     <span className="text-2xl font-black text-[#222222] dark:text-[#f5f5f5]">
-                      {storage.tiensan.toLocaleString()}₫
+                      {tiensan.toLocaleString()}₫
                     </span>
-                    {canEdit && (
+                    {canEditStorage && (
                       <button
                         onClick={() => {
-                          setTiensanDraft(String(storage.tiensan));
+                          setTiensanDraft(String(tiensan));
                           setEditingTiensan(true);
                         }}
                         className="text-[#6a6a6a] dark:text-[#a3a3a3] hover:text-[#222] dark:hover:text-white"
@@ -835,12 +797,12 @@ export default function NextMatchPage() {
                 ) : (
                   <div className="mt-2 flex items-center justify-between gap-3">
                     <span className="text-2xl font-black text-[#222222] dark:text-[#f5f5f5]">
-                      {storage.tiennuoc.toLocaleString()}₫
+                      {tiennuoc.toLocaleString()}₫
                     </span>
-                    {canEdit && (
+                    {canEditStorage && (
                       <button
                         onClick={() => {
-                          setTiennuocDraft(String(storage.tiennuoc));
+                          setTiennuocDraft(String(tiennuoc));
                           setEditingTiennuoc(true);
                         }}
                         className="text-[#6a6a6a] dark:text-[#a3a3a3] hover:text-[#222] dark:hover:text-white"
@@ -862,7 +824,7 @@ export default function NextMatchPage() {
                     </span>
                   )}
                 </div>
-                {canEdit ? (
+                {canEditStorage ? (
                   <div className="mt-3 flex flex-wrap gap-2">
                     <button
                       type="button"
@@ -908,8 +870,8 @@ export default function NextMatchPage() {
                   <span className="mt-2 block text-2xl font-black">
                     {losingTeamKey ? (
                       TEAM_LABELS[losingTeamKey]
-                    ) : storage.teamThua ? (
-                      storage.teamThua
+                    ) : teamThua ? (
+                      teamThua
                     ) : (
                       <span className="text-white/35 italic">None</span>
                     )}
@@ -957,7 +919,7 @@ export default function NextMatchPage() {
                   Active Vote
                 </h2>
               </div>
-              {canEdit && storage.activeVote && (
+              {canEditStorage && storage.activeVote && (
                 <Button
                   size="sm"
                   variant="outline"
@@ -992,19 +954,24 @@ export default function NextMatchPage() {
                     Votes
                   </p>
                   <div className="flex flex-wrap gap-2">
-                    {(storage.activeVote.options ?? []).map((option, idx) => {
-                      const voterNames = Object.values(
-                        storage.activeVote!.votes
-                      )
-                        .filter(v => v.options.includes(idx))
-                        .map(v => v.name);
+                    {activeVoteOptions.map((option, idx) => {
+                      const voterNames = activeVoteEntries
+                        .filter(([, vote]) =>
+                          getVoteSelectionIndexes(
+                            vote,
+                            activeVoteOptions
+                          ).includes(idx)
+                        )
+                        .map(([voteKey, vote]) =>
+                          getVoteVoterName(voteKey, vote)
+                        );
                       return (
                         <div
-                          key={idx}
+                          key={`${String(option)}:${idx}`}
                           className="bg-[#f7f7f7] border border-[#e0e0e0] rounded-airbnb px-3 py-2 min-w-[86px] dark:bg-[#2a2a2a] dark:border-[#343434]"
                         >
                           <p className="text-xs font-bold text-[#222] dark:text-[#f5f5f5]">
-                            {option}
+                            {String(option)}
                           </p>
                           <p className="text-[10px] text-[#888] dark:text-[#a3a3a3]">
                             {voterNames.length > 0
@@ -1016,7 +983,7 @@ export default function NextMatchPage() {
                     })}
                   </div>
                 </div>
-                {canEdit && (
+                {canEditStorage && (
                   <Button
                     size="sm"
                     variant="outline"
@@ -1035,7 +1002,7 @@ export default function NextMatchPage() {
         </section>
 
         {/* Danger Zone */}
-        {canEdit && (
+        {canEditStorage && (
           <section className="rounded-airbnb border border-red-200 bg-red-50 p-5 shadow-airbnb-card dark:border-red-900 dark:bg-[#1c1c1e]">
             <div className="mb-3 flex items-center gap-2 text-base font-black text-red-600 dark:text-red-400">
                 <AlertTriangle className="w-4 h-4" />
